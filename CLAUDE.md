@@ -4,8 +4,9 @@
 > standard, the engineering/teaching boundary, verification, working alongside other sessions —
 > lives in one document and is deliberately **not restated** here:
 >
->     Documents\Classes\Code Standard\CLAUDE.md      local working copy on this machine
->     https://github.com/sear-labs/code-standard     the source, canonical
+>     https://github.com/sear-labs/code-standard    canonical - the same from any machine
+>     a local clone, if you have one                faster; on the UTA desktop that is
+>                                                   Documents\Classes\Code Standard\
 >
 > **Read it first and last.** First because it decides how the work is done; last because a change
 > you are about to make may be one it already settles.

@@ -6,10 +6,10 @@ The curated home for teaching notebooks across IE 3315, IE 5301 and REE 4301. On
 than one repo per course, because the subjects are shared: LP formulation, duality, networks and
 stochastic programming all serve more than one course.
 
-`CLAUDE.md` here is the 577-line Code and Teaching Standard, copied from `Classes\Code Standard\`.
-Claude Code reads it automatically in every session in this folder. **A `Part 11 — This project
-specifically` should be appended for this library**; everything above it stays generic so it can be
-replaced wholesale when the standard is updated.
+`CLAUDE.md` here **points at** the Code and Teaching Standard rather than copying it, and carries
+this library's `Part 11`. Claude Code reads it automatically in every session in this folder; the
+standard itself is read from `Classes\Code Standard\` or `sear-labs/code-standard`. It used to be
+a copy, which drifted 23 lines behind with nothing to say so.
 
 ---
 

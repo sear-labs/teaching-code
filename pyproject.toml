@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68,<80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orteach"
+version = "0.1.0"
+description = "Teaching models for IE 3315, IE 5301 and REE 4301 — the package half of the notebook/package split"
+requires-python = ">=3.10,<3.14"
+
+# Pinned with upper bounds (standard Part 1 rule 3). An unpinned dependency will
+# one day install a major version with a changed API and either break or, worse,
+# silently alter results.
+dependencies = [
+    "gurobipy>=11,<14",
+    "pandas>=2.0,<4",
+    "matplotlib>=3.7,<4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+# This file exists so `pip install -e .` works, which is what makes the Colab
+# path possible: a notebook there installs the package and imports it, rather
+# than carrying a vendored copy of every model. It also removes all sys.path
+# fragility — the notebooks currently prepend ../../src, which works locally and
+# is the first thing to fail somewhere else.
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

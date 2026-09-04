@@ -84,3 +84,16 @@ desktop.ini
 # Teaching Corpus, but guard the path anyway.
 Teaching Corpus/
 **/student*/
+
+# --- the visibility boundary (standard Part 0) ---------------------------
+# Notebooks are public and take outside pull requests. Consolidated
+# observations on student work are education-record adjacent and staged
+# private until a sharing protocol exists. One repo has ONE visibility, so if
+# observations land in here the stricter rule wins and the notebooks lose every
+# outside reader. Blocking DIRECTORIES named student* was not enough: a FILE
+# named student_observations.md beside a notebook was committable.
+**/student_*
+**/*_students.*
+**/cohort_*
+**/*_observations.*
+**/what_students_did.*

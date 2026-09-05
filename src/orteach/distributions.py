@@ -10,9 +10,10 @@ tests compare against; the teaching notebook in
 ``notebooks/14_probability_and_stats/`` derives the same formulas by hand and
 checks itself against this module.
 
-The formulas are written in logs where the direct form underflows - a
-negative binomial with r = 500 has a p^r of 1e-301 - and the notebook shows
-why that is necessary.
+The formulas are written in logs where the direct form fails - a negative
+binomial with r = 500 has a binomial coefficient too large for a float (an
+OverflowError) and a product of powers that rounds to zero - and the notebook
+shows why that is necessary.
 """
 from __future__ import annotations
 

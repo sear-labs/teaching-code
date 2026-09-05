@@ -4,8 +4,8 @@ once for a machine.
 The course taught these through R's ``t.test``, ``var.test``, ``chisq.test``
 and ``lm``, and the shipped notebooks are R-kernel notebooks. This module
 writes each test out as a statistic, a reference distribution and a p-value,
-in the conventions R reports, so that ``t = -0.0831, df = 21, p = 0.9345``
-can be reproduced line by line. Only the tail areas come from
+in the conventions R reports - statistic, df, p-value, interval - so that a
+line of ``t.test`` output can be reproduced term by term. Only the tail areas come from
 ``scipy.stats``; the statistics are arithmetic.
 
 TABLES in ``data/raw/``:

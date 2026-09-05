@@ -65,7 +65,7 @@ def test_continuous_formulas_match_scipy_and_r():
     assert rel_diff(d.normal_cdf(40, 50, 10), stats.norm.cdf(40, 50, 10)) < 1e-8
     assert abs(d.normal_cdf(40, 50, 10) - 0.159) < R_ROUNDED
     assert rel_diff(d.lognormal_cdf(3.0, 0.8, 0.3), stats.lognorm.cdf(3.0, 0.3, scale=math.exp(0.8))) < 1e-8
-    assert abs(d.lognormal_cdf(3.0, 0.8, 0.3) - 0.84) < R_ROUNDED
+    assert abs(d.lognormal_cdf(3.0, 0.8, 0.3) - 0.84) < 5e-3       # R printed two decimals for this one
     for x in (-1.0, 0.0, 2.5):
         assert rel_diff(d.normal_pdf(x, 50, 10), stats.norm.pdf(x, 50, 10)) < 1e-8
 

@@ -95,3 +95,22 @@ def test_the_demand_table_regenerates_exactly():
     assert len(on_disk) == len(regenerated)
     assert on_disk == pytest.approx(regenerated, abs=1e-6), \
         "data/raw/newsvendor_demand.csv no longer matches generate_demand()"
+
+
+def test_the_order_is_the_critical_fractile(demand, results):
+    """Newsvendor theory: the optimal order is the c_u / (c_u + c_o) quantile
+    of demand, with c_u = RETAIL - COST the margin lost on a missed sale and
+    c_o = COST - RECOVER the loss on a scrapped unit. With 1000 equally likely
+    scenarios that is the ceil(1000 c_u / (c_u + c_o))-th smallest demand -
+    a one-line answer the 3001-variable LP must reproduce exactly."""
+    import math
+    c_u, c_o = RETAIL - COST, COST - RECOVER
+    k = math.ceil(c_u / (c_u + c_o) * len(demand)) - 1
+    assert abs(results["sp"].order - sorted(demand)[k]) < FEASIBILITY_ATOL
+
+
+def test_the_headline_numbers_the_notebook_prints():
+    """Regression pin on the shipped table: the stochastic order. If the table
+    or the economics change this fails, which is the point."""
+    d = data.load_demand()
+    assert abs(nv.solve_stochastic(d, COST, RETAIL, RECOVER).order - 458.247847) < 1e-6

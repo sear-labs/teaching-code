@@ -49,7 +49,7 @@ class Instance:
 
     @property
     def balanced(self) -> bool:
-        return abs(sum(self.supply.values()) - sum(self.demand.values())) < 1e-9
+        return abs(sum(self.supply.values()) - sum(self.demand.values())) < tolerance.FEASIBILITY_ATOL
 
 
 def load_instance(arcs_csv, nodes_csv, cost_col, qty_col, scale=1.0, name="") -> Instance:
@@ -98,7 +98,7 @@ class Plan:
     label: str = ""
 
     def used(self):
-        return {a: q for a, q in self.flow.items() if q > 1e-9}
+        return {a: q for a, q in self.flow.items() if q > tolerance.FEASIBILITY_ATOL}
 
 
 def solve(inst: Instance, cost_multiplier=1.0, env=None) -> Plan:
@@ -106,7 +106,8 @@ def solve(inst: Instance, cost_multiplier=1.0, env=None) -> Plan:
     instance quotes miles and charges 25 per truck-mile, so the multiplier is
     the tariff and the table stays in miles.
 
-    Supply rows are ``<=`` and demand rows are ``>=``. On a balanced instance both
+    Supply and demand rows are equalities on a balanced instance and ``<=`` /
+    ``>=`` otherwise (see the comment below). On a balanced instance both
     bind and the formulation is the classical one; on an unbalanced one this is
     the form that stays feasible without a dummy node.
     """

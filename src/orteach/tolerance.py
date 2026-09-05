@@ -32,6 +32,18 @@ AGREEMENT_RTOL = 1e-9
 # asserts across two test files before it had a name.
 FEASIBILITY_ATOL = 1e-6
 
+# How far from 0 or 1 a value may sit and still count as integral. Gurobi's
+# IntFeasTol is set to 1e-9 below, so this is the solver's own promise. It was
+# typed as a literal in three package modules and two notebooks before it had
+# a name (review of 2026-09-05).
+INTEGRALITY_ATOL = 1e-9
+
+# Absolute tolerance on numpy linear-algebra results - a solved steady state,
+# a matrix power, a fundamental matrix - on the small, well-conditioned
+# systems the teaching notebooks use. Not a solver tolerance; numpy has none to
+# set, so this is the noise floor a test allows for.
+LINALG_ATOL = 1e-9
+
 # What makes that claim honest. Gurobi's documented minimum for the three
 # tolerances is 1e-9; MIPGap 0 solves to proven optimality, which is instant on
 # instances this size and is the only setting under which a 1e-9 objective

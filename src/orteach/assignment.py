@@ -43,7 +43,7 @@ class Assignment:
 
     @property
     def is_integral(self) -> bool:
-        return all(min(abs(v), abs(v - 1)) < 1e-9 for v in self.assign.values())
+        return all(min(abs(v), abs(v - 1)) < tolerance.INTEGRALITY_ATOL for v in self.assign.values())
 
     def pairs(self):
         return sorted(a for a, v in self.assign.items() if v > 0.5)

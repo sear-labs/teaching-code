@@ -22,8 +22,9 @@ variable, ``provisioned[w]``, for the capacity a warehouse actually stands up:
     sum_c ship[w, c]      <= provisioned[w]              ship no more than stood up
     provisioned[w]        <= max_capacity[w] * open[w]   stand up nothing if closed
 
-Because provisioning costs money and buys nothing beyond what is shipped, the
-optimum always sets provisioned = shipped. So the three-variable form collapses
+Because provisioning costs money - every variable cost in the table is strictly
+positive - and buys nothing beyond what is shipped, the optimum sets
+provisioned = shipped. So the three-variable form collapses
 to two — but it keeps "how much capacity did we build" as a number a reader can
 point at, which is why the source had it and why it stays.
 """
@@ -85,7 +86,7 @@ class Plan:
 
     @property
     def is_integral(self) -> bool:
-        return all(min(abs(v), abs(v - 1)) < 1e-9 for v in self.open.values())
+        return all(min(abs(v), abs(v - 1)) < tolerance.INTEGRALITY_ATOL for v in self.open.values())
 
     def cost_breakdown(self, inst: Instance) -> dict:
         return {
@@ -140,7 +141,7 @@ def solve(inst: Instance, relax=False, fix_open=None, env=None) -> Plan:
 def most_fractional(plan: Plan):
     """The site whose opening is closest to 0.5 — the standard branching choice.
     Returns None if every opening is already 0 or 1."""
-    cand = [(abs(v - 0.5), w) for w, v in plan.open.items() if 1e-9 < v < 1 - 1e-9]
+    cand = [(abs(v - 0.5), w) for w, v in plan.open.items() if tolerance.INTEGRALITY_ATOL < v < 1 - tolerance.INTEGRALITY_ATOL]
     return min(cand)[1] if cand else None
 
 

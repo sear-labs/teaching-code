@@ -148,7 +148,7 @@ def test_dc_instance_loads_in_truckloads(dc):
     """Supplies and demands in the table are units; the loader divides by the
     truckload of 18 so the model ships trucks. Both sides must sum to the same
     number of trucks - the instance happens to be balanced in units."""
-    assert abs(sum(dc.supply.values()) - 750 / 18) < 1e-9
+    assert abs(sum(dc.supply.values()) - 750 / 18) < FEASIBILITY_ATOL
     assert dc.balanced
 
 
@@ -193,3 +193,29 @@ def test_every_machine_and_job_used_exactly_once(costs):
 def test_a_non_square_assignment_is_refused():
     with pytest.raises(ValueError, match="as many machines as jobs"):
         asg.solve_lp({("1", "1"): 1.0, ("1", "2"): 2.0})
+
+
+def test_inequality_rows_report_a_wrong_ranging_bound_on_a_balanced_instance():
+    """The transportation notebook's finding, pinned. On the balanced Texas
+    crude instance the <= / >= form has a degenerate optimal basis and reports
+    SAObjLow(Permian->Houston) above the equality form's. The equality form's
+    bound is the one test_the_kickback_is_real verifies by repricing."""
+    import gurobipy as gp
+    from orteach import tolerance
+    inst = tp.load_texas_crude()
+    assert inst.balanced
+    lows = {}
+    for form in ("inequality", "equality"):
+        with gp.Model() as m:
+            tolerance.apply(m)
+            x = m.addVars(inst.arcs.keys(), lb=0.0, obj=inst.arcs)
+            for o, q in inst.supply.items():
+                e = gp.quicksum(x[a] for a in inst.arcs if a[0] == o)
+                m.addConstr(e <= q if form == "inequality" else e == q)
+            for d, q in inst.demand.items():
+                e = gp.quicksum(x[a] for a in inst.arcs if a[1] == d)
+                m.addConstr(e >= q if form == "inequality" else e == q)
+            m.optimize()
+            lows[form] = x[("Permian", "Houston")].SAObjLow
+    assert lows["inequality"] > lows["equality"] + 0.1, lows
+    assert abs(lows["equality"] - tp.solve(inst).obj_low[("Permian", "Houston")]) < FEASIBILITY_ATOL

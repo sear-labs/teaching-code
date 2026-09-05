@@ -126,3 +126,26 @@ def test_plants_wholesalers_lp_is_integral():
     assert all(abs(v - round(v)) < FEASIBILITY_ATOL for v in plan.flow.values())
     assert not pw.balanced
     assert all(abs(v) < FEASIBILITY_ATOL for v in plan.supply_price.values())
+
+
+def test_a_max_problem_with_a_ge_row_gets_a_nonpositive_dual_in_its_own_sign():
+    """The branch neither shipped table exercises: a >= row in a max problem
+    gives y <= 0. dual_of carries it as its negative internally; solve must
+    report it in its own sign, equal to Pi, and the round trip must return the
+    row as it was written."""
+    lp = duality.with_row(duality.load_lp("lp_production_ab.csv"), "minimum_B", {"B": 1.0}, ">=", 7.0)
+    p = duality.solve(lp)
+    d = duality.solve(duality.dual_of(lp))
+    assert "minimum_B" in duality.dual_of(lp).negated
+    assert p.pi["minimum_B"] < -FEASIBILITY_ATOL
+    assert rel_diff(p.objective, d.objective) < AGREEMENT_RTOL
+    for r in lp.rows:
+        assert rel_diff(p.pi[r], d.x[r]) < AGREEMENT_RTOL, r
+    assert duality.complementary_slackness_gap(lp, p, d) < FEASIBILITY_ATOL
+    back = duality.dual_of(duality.dual_of(lp))
+    assert back.sense == lp.sense and back.b == lp.b
+    for k in lp.A:
+        assert abs(back.A[k] - lp.A[k]) < 1e-12
+    for r in lp.rows:
+        moved = duality.solve(lp, rhs_override={r: lp.b[r] + 0.5})
+        assert abs((moved.objective - p.objective) - 0.5 * p.pi[r]) < FEASIBILITY_ATOL, r

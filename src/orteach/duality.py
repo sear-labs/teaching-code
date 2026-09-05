@@ -54,6 +54,7 @@ class LP:
     sense: dict                 # row -> "<=", ">=", "="
     objective: str = "max"      # "max" or "min"
     free: frozenset = frozenset()
+    negated: frozenset = frozenset()    # variables carried as their negative (see dual_of)
     name: str = "lp"
 
     def row_expr(self, r, x):
@@ -85,9 +86,11 @@ def dual_of(lp: LP) -> LP:
 
     A dual variable that must be <= 0 is carried as its negative (y = -y' with
     y' >= 0) so every dual variable is either >= 0 or free; the sign flip is
-    applied to that variable's objective coefficient and column. Applying
-    ``dual_of`` twice therefore returns the primal up to those sign
-    substitutions, and ``solve`` reports the dual variable in its own sign.
+    applied to that variable's objective coefficient and column, and the
+    variable is listed in the returned LP's ``negated`` set. ``solve`` reads
+    that set and reports the variable in its own sign, and ``dual_of`` reads
+    it when taking the dual again, so the dual of the dual is the primal
+    exactly - rows, senses and coefficients as they were.
     """
     is_max = lp.objective == "max"
     dual_free, negated = set(), set()
@@ -98,16 +101,22 @@ def dual_of(lp: LP) -> LP:
         elif (s == "<=") != is_max:     # max primal with a >= row, or min primal with a <= row
             negated.add(r)
     flip = {r: (-1.0 if r in negated else 1.0) for r in lp.rows}
-    dual_sense = {j: ("=" if j in lp.free else (">=" if is_max else "<=")) for j in lp.variables}
+    # a primal variable that is itself a negated dual variable gives a dual row that must be
+    # un-negated: coefficients and rhs times -1, sense reversed
+    unflip = {j: (-1.0 if j in lp.negated else 1.0) for j in lp.variables}
+    base = ">=" if is_max else "<="
+    other = "<=" if is_max else ">="
+    dual_sense = {j: ("=" if j in lp.free else (other if j in lp.negated else base)) for j in lp.variables}
     return LP(
         variables=list(lp.rows),
         rows=list(lp.variables),
         c={r: flip[r] * lp.b[r] for r in lp.rows},
-        A={(j, r): flip[r] * lp.A.get((r, j), 0.0) for j in lp.variables for r in lp.rows},
-        b={j: lp.c[j] for j in lp.variables},
+        A={(j, r): unflip[j] * flip[r] * lp.A.get((r, j), 0.0) for j in lp.variables for r in lp.rows},
+        b={j: unflip[j] * lp.c[j] for j in lp.variables},
         sense=dual_sense,
         objective="min" if is_max else "max",
         free=frozenset(dual_free),
+        negated=frozenset(negated),
         name="dual of " + lp.name,
     )
 
@@ -139,12 +148,14 @@ def solve(lp: LP, rhs_override=None, env=None) -> Solution:
         m.optimize()
         if m.Status != gp.GRB.OPTIMAL:
             raise RuntimeError("%s ended with status %d" % (lp.name, m.Status))
-        xv = {j: x[j].X for j in lp.variables}
+        internal = {j: x[j].X for j in lp.variables}
+        sign = {j: (-1.0 if j in lp.negated else 1.0) for j in lp.variables}
         return Solution(
-            m.ObjVal, xv,
+            m.ObjVal,
+            {j: sign[j] * internal[j] for j in lp.variables},           # own sign
             {r: rows[r].Pi for r in lp.rows},
-            {j: x[j].RC for j in lp.variables},
-            {r: b[r] - sum(lp.A.get((r, j), 0.0) * xv[j] for j in lp.variables) for r in lp.rows},
+            {j: sign[j] * x[j].RC for j in lp.variables},
+            {r: b[r] - sum(lp.A.get((r, j), 0.0) * internal[j] for j in lp.variables) for r in lp.rows},
             lp.name,
         )
 
@@ -160,3 +171,17 @@ def complementary_slackness_gap(lp: LP, primal: Solution, dual: Solution) -> flo
     for j in lp.variables:
         worst = max(worst, abs(dual.slack[j] * primal.x[j]))
     return worst
+
+
+def with_row(lp: LP, name, coeffs: dict, sense: str, rhs: float) -> LP:
+    """A copy of ``lp`` with one more constraint row. Used by the tests to
+    build a max problem with a >= row, the case the two shipped tables do
+    not exercise."""
+    if sense not in SENSES:
+        raise ValueError("sense must be one of %s" % (SENSES,))
+    A = dict(lp.A)
+    for j in lp.variables:
+        A[name, j] = float(coeffs.get(j, 0.0))
+    return LP(list(lp.variables), list(lp.rows) + [name], dict(lp.c), A,
+              dict(lp.b, **{name: float(rhs)}), dict(lp.sense, **{name: sense}),
+              lp.objective, lp.free, lp.negated, lp.name + "+" + name)

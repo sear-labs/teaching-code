@@ -89,3 +89,26 @@ def test_the_table_has_the_shape_the_model_expects(investments):
     for r in investments:
         assert set(r) == {"investment", "npv", "cost_t0", "cost_t1"}
         assert r["npv"] > 0
+
+
+def test_the_headline_numbers_the_notebook_prints(plans):
+    """Regression pin on the shipped table: LP 57.449017, IP 43. The IP
+    optimum is unique over all 32 subsets; the LP has no alternative optimum
+    (every nonbasic reduced cost is strictly positive)."""
+    lp, ip = plans
+    assert abs(lp.npv - 57.449017) < 1e-5
+    assert abs(ip.npv - 43.0) < 1e-9
+    assert {k for k, v in ip.fractions.items() if v > 0.5} == {"1", "3", "4"}
+
+
+def test_greedy_by_npv_per_dollar_in_whole_units_matches_the_integer_optimum(investments, plans):
+    """The review's point: buying down the NPV-per-dollar ranking in whole
+    units reaches the integer optimum here, so the notebook must not claim
+    ranking 'fails' for the integer question. It does fall short of the LP."""
+    _, ip = plans
+    order = sorted(investments, key=lambda r: r["npv"] / (r["cost_t0"] + r["cost_t1"]), reverse=True)
+    t0, t1, taken, npv = BUDGET_T0, BUDGET_T1, set(), 0.0
+    for r in order:
+        if r["cost_t0"] <= t0 + FEASIBILITY_ATOL and r["cost_t1"] <= t1 + FEASIBILITY_ATOL:
+            t0 -= r["cost_t0"]; t1 -= r["cost_t1"]; taken.add(r["investment"]); npv += r["npv"]
+    assert abs(npv - ip.npv) < FEASIBILITY_ATOL

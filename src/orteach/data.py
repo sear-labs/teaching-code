@@ -42,7 +42,7 @@ def generate_demand(n=DEMAND_N, mu=DEMAND_MU, sigma=DEMAND_SIGMA, seed=DEMAND_SE
 
 def write_demand(path=DEMAND_CSV):
     """Write the table. The script is the source of truth; the CSV is a build
-    output, and ``tests/test_data.py`` checks that regenerating reproduces it."""
+    output, and ``tests/test_newsvendor.py::test_the_demand_table_regenerates_exactly`` checks that regenerating reproduces it."""
     rows = generate_demand()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:

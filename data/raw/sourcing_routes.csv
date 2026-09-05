@@ -1,0 +1,11 @@
+stage,origin,destination,cost_per_kt
+ore,DRC,China,2.0
+ore,DRC,Domestic,6.0
+ore,Australia,China,4.0
+ore,Australia,Domestic,5.5
+ore,Domestic,China,8.0
+ore,Domestic,Domestic,3.0
+metal,China,Cell Plant A,3.0
+metal,China,Cell Plant B,3.0
+metal,Domestic,Cell Plant A,5.0
+metal,Domestic,Cell Plant B,5.0

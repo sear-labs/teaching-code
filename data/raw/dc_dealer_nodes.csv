@@ -1,0 +1,9 @@
+node,kind,units
+1,supply,400
+2,supply,200
+3,supply,150
+1,demand,100
+2,demand,200
+3,demand,150
+4,demand,160
+5,demand,140

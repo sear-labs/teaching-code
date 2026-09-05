@@ -1,0 +1,6 @@
+node,kind,kbbl_per_day
+Permian,supply,100
+Eagle Ford,supply,80
+Houston,demand,70
+Corpus Christi,demand,60
+Beaumont,demand,50

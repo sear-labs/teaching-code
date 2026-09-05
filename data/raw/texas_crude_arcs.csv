@@ -1,0 +1,7 @@
+origin,destination,cost_per_bbl
+Permian,Houston,3.00
+Permian,Corpus Christi,4.50
+Permian,Beaumont,3.50
+Eagle Ford,Houston,2.50
+Eagle Ford,Corpus Christi,1.50
+Eagle Ford,Beaumont,4.00

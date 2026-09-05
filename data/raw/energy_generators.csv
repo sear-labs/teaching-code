@@ -1,0 +1,4 @@
+technology,p_nom_mw,marginal_cost,capital_cost_per_mw_yr,p_nom_max_mw,profile
+solar,140,0.00,90000,400,solar
+gas,66,22.14,70000,0,flat
+peaker,100,80.00,25000,0,flat

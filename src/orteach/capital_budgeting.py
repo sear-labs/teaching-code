@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 
 import gurobipy as gp
 
+from . import tolerance
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "data", "raw")
 INVESTMENTS_CSV = os.path.join(DATA_DIR, "staroil_investments.csv")
@@ -67,8 +69,8 @@ def _build(investments, budget_t0, budget_t1, integral, env=None):
     if n == 0:
         raise ValueError("no investments supplied - the table is empty")
     m = gp.Model(env=env)
-    m.Params.OutputFlag = 0
-    m.ModelSense = gp.GRB.MAXIMIZE
+    tolerance.apply(m)          # MIPGap 0: the integer solve is proven optimal, so a
+    m.ModelSense = gp.GRB.MAXIMIZE   # 1e-9 objective comparison against it means something
     vtype = gp.GRB.BINARY if integral else gp.GRB.CONTINUOUS
     # ub=1 is the line that makes this a capital-budgeting problem rather than a
     # shopping spree: you cannot buy an investment twice.

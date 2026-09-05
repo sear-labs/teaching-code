@@ -28,6 +28,8 @@ from statistics import mean, stdev
 
 import gurobipy as gp
 
+from . import tolerance
+
 
 @dataclass
 class NewsvendorResult:
@@ -91,7 +93,7 @@ def solve_stochastic(demand, cost, retail, recover, env=None) -> NewsvendorResul
     lo, hi = _bounds(demand, cost, retail, recover)
 
     with gp.Model(env=env) as m:
-        m.Params.OutputFlag = 0
+        tolerance.apply(m)          # solve as tightly as the notebook asserts
         m.ModelSense = gp.GRB.MAXIMIZE
         order = m.addVar(name="order")
         profit = m.addVars(n, obj=1.0 / n, lb=lo, ub=hi, name="profit")
@@ -157,7 +159,7 @@ def solve_max_worst_case(demand, cost, retail, recover, env=None) -> NewsvendorR
     lo, hi = _bounds(demand, cost, retail, recover)
 
     with gp.Model(env=env) as m:
-        m.Params.OutputFlag = 0
+        tolerance.apply(m)          # solve as tightly as the notebook asserts
         m.ModelSense = gp.GRB.MAXIMIZE
         worst = m.addVar(lb=lo, ub=hi, obj=1, name="worst")
         order = m.addVar(name="order")

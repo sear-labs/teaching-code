@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
 from orteach import data, newsvendor as nv  # noqa: E402
+from orteach.tolerance import AGREEMENT_RTOL, FEASIBILITY_ATOL  # noqa: E402
 
 COST, RETAIL, RECOVER = 2, 15, -3
 
@@ -53,8 +54,8 @@ def test_risk_aversion_buys_a_better_floor_and_pays_for_it(results):
     risk-neutral one, and must not beat it on the average — otherwise it would
     be free, and it is not."""
     sp, worst = results["sp"], results["worst"]
-    assert worst.worst_profit >= sp.worst_profit - 1e-6
-    assert worst.expected_profit <= sp.expected_profit + 1e-6
+    assert worst.worst_profit >= sp.worst_profit - FEASIBILITY_ATOL
+    assert worst.expected_profit <= sp.expected_profit + FEASIBILITY_ATOL
 
 
 def test_evaluate_order_agrees_with_the_solver(demand, results):
@@ -63,7 +64,7 @@ def test_evaluate_order_agrees_with_the_solver(demand, results):
     sp = results["sp"]
     scored = nv.evaluate_order(demand, COST, RETAIL, RECOVER, sp.order)
     rel = abs(scored.expected_profit - sp.expected_profit) / abs(sp.expected_profit)
-    assert rel < 1e-9, "solver and arithmetic disagree by %.2e" % rel
+    assert rel < AGREEMENT_RTOL, "solver and arithmetic disagree by %.2e" % rel
 
 
 def test_no_scenario_sells_more_than_it_could(demand, results):
@@ -71,7 +72,7 @@ def test_no_scenario_sells_more_than_it_could(demand, results):
     whole order at retail."""
     sp = results["sp"]
     cap = sp.order * (RETAIL - COST)
-    assert max(sp.profits) <= cap + 1e-6
+    assert max(sp.profits) <= cap + FEASIBILITY_ATOL
 
 
 def test_unbounded_economics_are_refused():

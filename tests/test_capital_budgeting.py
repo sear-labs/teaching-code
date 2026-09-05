@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
 from orteach import capital_budgeting as cb  # noqa: E402
+from orteach.tolerance import FEASIBILITY_ATOL  # noqa: E402
 
 BUDGET_T0, BUDGET_T1 = 40.0, 20.0
 
@@ -35,7 +36,7 @@ def test_no_investment_is_bought_more_than_once(plans):
     investment 3 and 5 of investment 4, which is not a thing you can do."""
     for plan in plans:
         for name, share in plan.fractions.items():
-            assert -1e-9 <= share <= 1 + 1e-9, \
+            assert -FEASIBILITY_ATOL <= share <= 1 + FEASIBILITY_ATOL, \
                 "%s: bought %.3f of investment %s" % (plan.label, share, name)
 
 
@@ -44,7 +45,7 @@ def test_the_relaxation_bounds_the_integer_answer(plans):
     cannot do better. An approximation must not beat the exact answer it
     approximates."""
     frac, integral = plans
-    assert frac.npv >= integral.npv - 1e-6
+    assert frac.npv >= integral.npv - FEASIBILITY_ATOL
 
 
 def test_indivisibility_never_pays(plans):
@@ -53,14 +54,14 @@ def test_indivisibility_never_pays(plans):
 
 def test_both_plans_respect_both_budgets(investments, plans):
     for plan in plans:
-        assert plan.spend(investments, 0) <= BUDGET_T0 + 1e-6
-        assert plan.spend(investments, 1) <= BUDGET_T1 + 1e-6
+        assert plan.spend(investments, 0) <= BUDGET_T0 + FEASIBILITY_ATOL
+        assert plan.spend(investments, 1) <= BUDGET_T1 + FEASIBILITY_ATOL
 
 
 def test_the_integer_plan_is_actually_integral(plans):
     _, integral = plans
     for name, share in integral.fractions.items():
-        assert min(abs(share), abs(share - 1)) < 1e-6, \
+        assert min(abs(share), abs(share - 1)) < FEASIBILITY_ATOL, \
             "investment %s came back at %.6f, which is neither 0 nor 1" % (name, share)
 
 

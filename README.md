@@ -79,40 +79,68 @@ ahead of LP formulation, which is backwards.
 07_stochastic_and_newsvendor   14_probability_and_stats
 ```
 
-The list came from clustering the real filenames across both sources, which classified 118 of 252
-distinct teaching files. The other 134 have names like `00_concepts.ipynb` that carry no subject —
-their folder gets decided while reading them, during the migration pass, not before it.
+## What is here, measured 2026-09-05
 
----
+Seventeen teaching notebooks in twelve subjects, each with its package module, its tables and its
+tests. `02_simplex_and_bases` is empty on purpose. Every notebook ships executed, ends in the
+agreement assertion, and passes `tools/check_notebooks.py`.
 
-## The migration pass
+| folder | notebooks | package |
+|---|---|---|
+| 01 | `diet`, `goal_programming` | `diet`, `goal_programming` |
+| 03 | `primal_and_dual` | `duality` |
+| 04 | `transportation`, `assignment` | `transportation`, `assignment` |
+| 05 | `facility_location` | `facility_location` |
+| 06 | `curve_fit_lifting`, `pooling` | `nonconvex` |
+| 07 | `newsvendor` | `newsvendor`, `data` |
+| 08 | `monte_carlo` | `montecarlo` |
+| 09 | `markov_and_queues` | `markov`, `queueing` |
+| 10 | `zero_sum_game` | `games` |
+| 11 | `capital_budgeting` | `capital_budgeting` |
+| 12 | `dispatch_to_pypsa` (own kernel — see its README) | `energy` |
+| 13 | `sourcing_and_resilience` | `sourcing` |
+| 14 | `distributions_and_clt`, `inference_and_regression` | `distributions`, `inference` |
 
-Nothing has been migrated yet. Each notebook that comes in gets, in one pass:
+`orteach.tolerance` is the one home of every tolerance and of the solver settings that make the
+agreement assertion honest.
 
-1. **Subject folder assigned** by reading it.
-2. **Code Standard compliance** — Part 10's pre-ship checklist is the bar. Especially: no function
-   definitions above the "streamlined version" heading, markdown above every teaching cell, at least
-   one "predict before you run" prompt before the first result, and the agreement assertion.
-3. **Colab Secrets for any Gurobi WLS credential** — never a pasted key. See
-   `Inventory\classes\PASTED_KEYS.md` §5 for the exact cell.
-4. **Shipped executed** — outputs and figures committed, so a reader without a licence still sees
-   what the prose refers to.
+**The defect record is the git log.** Every migration commit says what the source notebooks got
+wrong, in which term folders, and what the notebook does about it — a protein row pointing the wrong
+way for three terms, a goal-programming deviation pointing the wrong way for five, a game solved
+with its payoffs missing for four, a least-squares fit that could only over-predict, a MIP asked for
+duals in ten folders, a ranging bound wrong by half. Read `git log` before assuming a course copy
+is right.
 
-Known starting point, measured 2026-09-03: **380 distinct teaching files, heavily duplicated** —
-`StochasticLP.ipynb` exists in 14 places, `StarOil_NPV_*` in 10 each. The target is roughly 30
-canonical notebooks. The job is curation, not polishing.
+The lithium supply-chain material (`sear-labs/advopt-lithiumsc`) and the rest of REE 4301 (a git
+repository on OneDrive) are pointed at from `06`, `10`, `12` and `13`, not copied.
 
-The 7 already-migrated notebooks in `Classes\Advanced Opt Modeling Examples\notebooks\` are the
-reference for what "done" looks like: all executed, zero orphan cells, 6–12 prediction prompts each,
-agreement assertions present.
+## Checking the work
+
+```bash
+python -m pytest tests/ -q                    # domain invariants, regression pins, R and textbook values
+python tools/check_notebooks.py               # Part 10, the machine-checkable half, every notebook
+```
+
+The checker refuses: an unexecuted notebook or an error output, an orphan code cell, a function or
+named lambda before the "Now the streamlined version" heading, no predict-before-you-run prompt, no
+agreement assertion, a tolerance literal used as a threshold, a seed set but not printed, a cell too
+long to read without scrolling, a number in the prose that no output produced, a licence banner in
+an output, and a notebook without the Colab setup cell.
+
+To re-execute a notebook: `jupyter nbconvert --to notebook --execute --inplace <path>` (for `12`, add
+`--ExecutePreprocessor.kernel_name=orteach-energy`). Three fresh-context reviews of the first nine
+notebooks are folded into commit `80f5761`.
 
 ---
 
 ## Before this goes public
 
-- **Rotate the Gurobi WLS key first.** It is still live in a shared Drive copy.
+- **Rotate the Gurobi WLS key first.** It is still live in shared Drive copies.
 - The licence expires **2026-12-04**, mid-semester.
-- `pyproject.toml` so `pip install -e .` works — required for Colab, and it removes all `sys.path`
-  fragility.
+- **Set `REPO_URL`** in every notebook's setup cell to the published address (one `sed`); until then
+  the Colab path fails with a sentence saying the library is not published.
+- **The licence number is in the history** of commits `5cbe945`, `bfe8228`, `8acc3d4` and `e99d8da`
+  (an output line, scrubbed forward in `9b9cb10`). No remote exists yet, so those can be rewritten
+  before the first push if wanted.
 - Exclude other people's material: `Krejci IE 3315 Lecture Notes` and `CorleyFiles` are not yours to
-  publish.
+  publish. Solution keys are already excluded; the exam-score vectors in `14` are synthetic.

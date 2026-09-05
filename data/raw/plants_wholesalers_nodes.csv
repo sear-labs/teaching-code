@@ -1,0 +1,6 @@
+node,kind,units
+P1,supply,4500
+P2,supply,9000
+W1,demand,2700
+W2,demand,4500
+W3,demand,3600

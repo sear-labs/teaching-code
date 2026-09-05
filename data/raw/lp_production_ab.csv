@@ -1,0 +1,5 @@
+row,A,B,sense,rhs
+objective,20,15,max,
+labor,10,2,<=,40
+materials,6,7,<=,54
+storage,4,2,<=,20

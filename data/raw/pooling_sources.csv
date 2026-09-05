@@ -1,0 +1,4 @@
+source,sulfur_pct,cost_per_unit,route
+A,3,6,pool
+B,1,16,pool
+C,2,10,direct

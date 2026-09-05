@@ -1,0 +1,4 @@
+state,North,South,West
+North,0.3,0.3,0.4
+South,0.4,0.4,0.2
+West,0.5,0.3,0.2

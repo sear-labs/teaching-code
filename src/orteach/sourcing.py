@@ -65,7 +65,13 @@ class Plan:
     ore: dict = field(default_factory=dict)         # (mine, processor) -> kt
     metal: dict = field(default_factory=dict)       # (processor, plant) -> kt
     share_cap: float | None = None
-    processor_price: dict = field(default_factory=dict)   # processor -> dual of its capacity row
+    # processor -> dual of its capacity row. DEGENERATE on the shipped instance:
+    # total demand equals China's capacity exactly, so the row is tight with slack
+    # on both sides of the optimal face and the dual is not unique. Gurobi returns
+    # the right derivative (0, the cost of one MORE kilotonne of refining); the left
+    # derivative is -3 (one FEWER costs $3). Read it as one-sided, and see the
+    # notebook cell that prints the two neighbouring solves beside it.
+    processor_price: dict = field(default_factory=dict)
 
     def by_mine(self):
         out = {}
@@ -113,9 +119,33 @@ def price_curve(inst: Instance, caps, env=None) -> list:
     return [(cap, solve(inst, share_cap=cap, env=env)) for cap in caps]
 
 
+def max_supply_at(inst: Instance, share: float) -> float:
+    """Most the mines can ship when no mine may exceed ``share`` of demand."""
+    limit = share * inst.total_demand
+    return sum(min(cap, limit) for cap in inst.mines.values())
+
+
 def smallest_feasible_share(inst: Instance) -> float:
-    """With k mines all capped at the same share of demand, the shares must
-    sum to at least one: the cap can be no smaller than 1/k, and no smaller
-    than what the mines' own capacities allow."""
-    k = len(inst.mines)
-    return max(1.0 / k, 1.0 - sum(sorted(inst.mines.values())[:-1]) / inst.total_demand if k > 1 else 1.0)
+    """The smallest equal share cap under which a plan still exists.
+
+    A mine capped at share ``c`` can ship at most ``min(capacity, c * demand)``,
+    so a plan exists exactly when those minima sum to demand or more. That sum
+    is the smallest of the ``k`` linear pieces ``j * c * demand + (the k - j
+    smallest capacities)``, so the condition is one inequality per ``j`` and the
+    answer is the largest of the bounds they give:
+
+        c >= (demand - the k - j smallest capacities) / (j * demand)
+
+    When every mine is large enough to reach its own share, only ``j = k`` binds
+    and the answer is the ``1/k`` the module's prose predicts. When a mine is too
+    small to reach its share, a middle ``j`` binds and the answer is LARGER,
+    because the mines that can reach the cap have to cover what that one cannot.
+    Mines 120/60/20 against a demand of 120 is the case that separates them: the
+    ``1/k`` floor says 1/3, at which no plan exists, and the true answer is 5/12.
+    """
+    demand = inst.total_demand
+    caps = sorted(inst.mines.values())
+    k = len(caps)
+    if sum(caps) < demand:
+        raise ValueError("the mines cannot meet demand at any share cap")
+    return max((demand - sum(caps[:k - j])) / (j * demand) for j in range(1, k + 1))

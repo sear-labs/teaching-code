@@ -8,8 +8,9 @@ names is the record of what changed and why. Earlier reviews (of `01`, `03`, `04
 
 ## Status
 
-The first review's fifteen findings are fixed and the three notebooks re-executed; the second
-review's nine are open. `git log` carries what each fix changed and why.
+Both reviews are closed: all twenty-four findings are fixed and all five notebooks re-executed.
+`git log` carries what each fix changed and why. One finding, B3, was fixed on a different diagnosis
+than the reviewer gave; the section below, just above the verbatim reports, says what and why.
 
 | # | item | where | status |
 |---|---|---|---|
@@ -28,15 +29,15 @@ review's nine are open. `git log` carries what each fix changed and why.
 | A13 | hour 18 also above gas's cost | 12 cell 27 | fixed |
 | A14 | first day network loops where Part C wrote generators out | 12 cell 22 | fixed |
 | A15 | cosmetics: `np.float64` reprs, `n.buses` dump, literal tolerances in tests, defect story in prose | 09, 10, 12, tests | fixed |
-| B1 | "no processor rows" check compares the wrong objective | 13 cell 26 | open |
-| B2 | "shadow price is zero" asserts a non-unique dual | 13 cells 14-15; `sourcing.py` | open |
-| B3 | box story mis-attributed; exercise premise false (the lower bound is what matters) | 06 curve_fit cells 7, 19, exercise | open |
-| B4 | `smallest_feasible_share` wrong in general | `sourcing.py`; `tests/test_sourcing.py` | open |
-| B5 | exercise points at an advopt notebook that does not contain the problem | 13 cell 27 | open |
-| B6 | leave-room quotes | 06 curve_fit 23; pooling 0, 9, 21, 23; 13 cells 0, 23; `06/README.md` | open |
-| B7 | tests: literal tolerances, "exactly one dollar" comment, unpinned local optimum, model built outside the silent env | `tests/test_nonconvex.py`, `tests/test_sourcing.py` | open |
-| B8 | Part 3 nits: inline lambda, three-idea heading, silent trailing solves | 06 curve_fit 20; 13 cell 12; pooling 22, 13 cell 22 | open |
-| B9 | Part 4 nits: `B1_MIN` derived twice, `ub=200.0`, scipy call not compared, X quality printed, `FLOW_CAP` comment | 06 both; 13 | open |
+| B1 | "no processor rows" check compares the wrong objective | 13 cell 26 | fixed |
+| B2 | "shadow price is zero" asserts a non-unique dual | 13 cells 14-15; `sourcing.py` | fixed |
+| B3 | box story mis-attributed; exercise premise false (the lower bound is what matters) | 06 curve_fit cells 7, 19, exercise | fixed |
+| B4 | `smallest_feasible_share` wrong in general | `sourcing.py`; `tests/test_sourcing.py` | fixed |
+| B5 | exercise points at an advopt notebook that does not contain the problem | 13 cell 27 | fixed |
+| B6 | leave-room quotes | 06 curve_fit 23; pooling 0, 9, 21, 23; 13 cells 0, 23; `06/README.md` | fixed |
+| B7 | tests: literal tolerances, "exactly one dollar" comment, unpinned local optimum, model built outside the silent env | `tests/test_nonconvex.py`, `tests/test_sourcing.py` | fixed |
+| B8 | Part 3 nits: inline lambda, three-idea heading, silent trailing solves | 06 curve_fit 20; 13 cell 12; pooling 22, 13 cell 22 | fixed |
+| B9 | Part 4 nits: `B1_MIN` derived twice, `ub=200.0`, scipy call not compared, X quality printed, `FLOW_CAP` comment | 06 both; 13 | fixed |
 
 ## Before the first push
 
@@ -65,8 +66,29 @@ from a notebook folder, which is the path a reader on Colab takes.
 - `README.md` and `notebooks/12_energy_systems_pypsa/README.md` point at REE 4301 by its OneDrive
   path, because that repository has no remote. Replace with the URL once it is pushed.
 - Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
-- **Everything committed from now on is immediately public.** The nine findings below are public
-  defects until they are fixed.
+- **Everything committed from now on is immediately public.** The nine B findings were public
+  defects from the first push until they were fixed; `smallest_feasible_share` returning an
+  infeasible share was the one that was a wrong answer rather than a presentation problem.
+
+### B3 was fixed, on a different diagnosis
+
+The reviewer's mechanism did not reproduce. Their claim was that dropping the lower bound
+`B1_MIN = max(volume)+1` to zero produces SUBOPTIMAL at a 100% gap over 80-99k nodes. Measured here
+on Gurobi 13.0.2, that model still proves optimality in 0.14 s over 3,425 nodes, and so does every
+other single-bound removal. What actually reproduces the failure is removing **all five bounds at
+once**: the solver reaches 4.8076 within seconds and never proves it, 100% gap, reproducible across
+three seeds.
+
+So the notebook now teaches the mechanism that measurement supports, and it is a better lesson than
+either version: the boxes matter collectively, not individually; the envelope of an unbounded product
+carries no information, so the bound sits at zero; and what a box buys is the proof rather than the
+answer. The reviewer's two other B3 points held and are fixed as they described - `B1_MAX` at one
+million really is *fewer* nodes than the shipped `5e4` (1,737 against 3,828), so "the tighter the box
+the faster the proof" was wrong in the prose and the exercise built on it had a false premise.
+
+The general lesson is the one Part 6 already states: a diagnosis that explains the symptom is not
+thereby the cause. Both reviewers were right that something was wrong here, and the fix belonged to a
+different bound than the one named.
 
 ---
 

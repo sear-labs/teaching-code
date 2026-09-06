@@ -64,17 +64,25 @@ class Fit:
         return self.b0 / (self.b1 - v)
 
 
-def fit_congestion(inst: Traffic, b1_max=50_000.0, b0_max=5e6, ratio_cap=19.0, env=None) -> Fit:
+def fit_congestion(inst: Traffic, b1_max=50_000.0, b0_max=5e6, ratio_cap=19.0,
+                   b1_min=None, env=None) -> Fit:
     """Global least squares for t = b0 / (b1 - v), lifted for a QCQP solver.
 
-    ``b1_max`` and ``b0_max`` are box bounds; spatial branch-and-bound needs
-    finite boxes on every variable in a bilinear term, and the tighter the
-    box the faster the proof. ``ratio_cap`` is the slide's b0 <= 19 b1.
-    Residuals are free in sign - the source notebooks declared them >= 0 and
-    fitted a curve that could only over-predict.
+    ``b1_min``, ``b1_max`` and ``b0_max`` are the box bounds spatial
+    branch-and-bound builds its convex envelopes over. They matter
+    COLLECTIVELY, not one at a time: with all of them finite the proof closes
+    in about 3,800 nodes, removing any single one still closes it, and
+    removing all of them leaves the solver finding the right answer within
+    seconds but never proving it - the envelope of an unbounded bilinear term
+    is trivial, so the bound sits at zero and the gap stays at 100%.
+    ``b1_min`` defaults to just above the largest observed volume, which is
+    what keeps every denominator positive. ``ratio_cap`` is the slide's
+    b0 <= 19 b1. Residuals are free in sign - the source notebooks declared
+    them >= 0 and fitted a curve that could only over-predict.
     """
     v, t = np.asarray(inst.volume), np.asarray(inst.travel_time)
-    b1_min = float(v.max()) + 1.0                 # every denominator positive
+    if b1_min is None:
+        b1_min = float(v.max()) + 1.0             # every denominator positive
     with gp.Model(env=env) as m:
         tolerance.apply(m)
         m.Params.NonConvex = 2
@@ -93,16 +101,25 @@ def fit_congestion(inst: Traffic, b1_max=50_000.0, b0_max=5e6, ratio_cap=19.0, e
         return Fit(b0.X, b1.X, m.ObjVal, [ri.X for ri in r], m.ObjBound, "Gurobi, lifted QCQP")
 
 
-def fit_congestion_scipy(inst: Traffic, b1_start=10_000.0) -> Fit:
+def congestion_residuals(params, volume, travel):
+    """Fitted minus observed for t = b0 / (b1 - v), as a local optimiser wants
+    it: the formula written once, with no lifting and no auxiliary variables.
+    ``params`` is ``(b0, b1)``. Lives here rather than in a notebook so both
+    the notebook's own scipy call and ``fit_congestion_scipy`` below minimise
+    the identical function."""
+    b0, b1 = params
+    return b0 / (np.asarray(b1) - np.asarray(volume)) - np.asarray(travel)
+
+
+def fit_congestion_scipy(inst: Traffic, b1_start=10_000.0, b1_min=None) -> Fit:
     """The same curve by scipy's local least squares. No lifting, no proof of
     global optimality - a second opinion from a different method."""
     from scipy.optimize import least_squares
     v, t = np.asarray(inst.volume), np.asarray(inst.travel_time)
-
-    def resid(p):
-        return p[0] / (p[1] - v) - t
-
-    res = least_squares(resid, x0=[1e5, b1_start], bounds=([0.0, v.max() + 1.0], [np.inf, np.inf]))
+    if b1_min is None:
+        b1_min = float(v.max()) + 1.0
+    res = least_squares(congestion_residuals, x0=[1e5, b1_start], args=(v, t),
+                        bounds=([0.0, b1_min], [np.inf, np.inf]))
     return Fit(float(res.x[0]), float(res.x[1]), float(np.sum(res.fun ** 2)), [float(x) for x in res.fun],
                label="scipy least_squares")
 
@@ -161,11 +178,22 @@ class Blend:
         return self.from_pool[product] + sum(q for (s, p), q in self.direct.items() if p == product)
 
 
-def solve_pooling(inst: Pooling, flow_cap=250.0, env=None) -> Blend:
+def solve_pooling(inst: Pooling, flow_cap=None, pool_sulfur=None, env=None) -> Blend:
     """The P-formulation: a sulfur-fraction variable for the pool and for
     each product, each defined by a bilinear balance (fraction x flow).
-    ``flow_cap`` is the box on every flow; the source used 250, which is
-    above any demand and so never binds."""
+
+    ``flow_cap`` is the box every flow needs for spatial branch-and-bound. It
+    defaults to TOTAL demand, which is the smallest value that cannot bind:
+    nothing sold exceeds demand, so no flow can exceed the sum of them. The
+    source used 250, which is above the largest demand but BELOW their sum -
+    inert at the shipped prices and a real constraint at others.
+
+    ``pool_sulfur`` pins the pool's fraction instead of solving for it. That
+    makes the bilinear pool-quality row linear, so each solve reports the best
+    plan available GIVEN that pool - the landscape a local method climbs.
+    """
+    if flow_cap is None:
+        flow_cap = sum(inst.demand.values())
     with gp.Model(env=env) as m:
         tolerance.apply(m)
         m.Params.NonConvex = 2
@@ -173,6 +201,8 @@ def solve_pooling(inst: Pooling, flow_cap=250.0, env=None) -> Blend:
         fout = m.addVars(inst.products, lb=0.0, ub=flow_cap, name="from_pool")
         fd = m.addVars([(s, p) for s in inst.direct for p in inst.products], lb=0.0, ub=flow_cap, name="direct")
         qp = m.addVar(lb=0.0, ub=1.0, name="pool_sulfur")
+        if pool_sulfur is not None:
+            qp.LB = qp.UB = pool_sulfur
         qj = m.addVars(inst.products, lb=0.0, ub=1.0, name="product_sulfur")
 
         m.addConstr(fin.sum() == fout.sum(), name="pool_balance")
@@ -193,6 +223,19 @@ def solve_pooling(inst: Pooling, flow_cap=250.0, env=None) -> Blend:
         return Blend(m.ObjVal, {s: fin[s].X for s in inst.pooled}, {p: fout[p].X for p in inst.products},
                      {k: v.X for k, v in fd.items()}, qp.X, {p: qj[p].X for p in inst.products},
                      m.ObjBound, "Gurobi, P-formulation")
+
+
+def pooling_landscape(inst: Pooling, pool_sulfur_values, flow_cap=None, env=None) -> dict:
+    """Best profit for each PINNED pool sulfur fraction: ``{fraction: profit}``.
+
+    This is the sweep the notebook traces by hand. It exists so the shape has
+    somewhere to be pinned by a test - the two humps and the valley between
+    them are the reason a downhill method started on the wrong side stops at
+    the wrong answer, and that claim is worth a test rather than a sentence.
+    """
+    # + 0.0 turns a solver's -0.0 into 0.0, so a printed landscape reads cleanly
+    return {q: solve_pooling(inst, flow_cap=flow_cap, pool_sulfur=q, env=env).objective + 0.0
+            for q in pool_sulfur_values}
 
 
 def profit_of(inst: Pooling, blend: Blend) -> float:

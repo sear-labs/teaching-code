@@ -25,9 +25,9 @@ and every plant has a requirement. Find the cheapest plan.
 
 That is a transportation problem with a layer in the middle, and the middle layer brings one new
 row: a processor cannot ship out what it did not take in. Then the question the module was written
-for: the cheapest plan buys everything from one mine. Cap any single mine's share of the total, and
-watch what that costs. The model does not say which cap is right — that is a judgement about risk —
-but it turns "does diversifying cost anything?" into "how much?", which is the more useful argument.
+for. Cap any single mine's share of the total supply, and watch what that costs. The model does not
+say which cap is right — that is a judgement about risk — but it turns "does diversifying cost
+anything?" into "how much?".
 """)
 
 md(r"""
@@ -154,16 +154,28 @@ print(m.getObjective())
 ''')
 
 md(r"""
-## The rows: capacities at both ends, requirements at the plants, and conservation in the middle
+## Capacities at both ends, requirements at the plants
 
-The conservation row is the one a transportation problem does not have. Say what goes wrong if it is
-left out, before running the cell.
+Nothing may leave a mine beyond its capacity, nothing may enter a processor beyond its capacity, and
+each plant gets exactly what it asked for. Three families of rows, all of them the kind a plain
+transportation problem already has.
 """)
 code(r'''
 mine_cap = {i: m.addConstr(x.sum(i, "*") <= cap, name=f"mine[{i}]") for i, cap in inst.mines.items()}
 proc_cap = {p: m.addConstr(x.sum("*", p) <= cap, name=f"processor[{p}]") for p, cap in inst.processors.items()}
-balance  = {p: m.addConstr(x.sum("*", p) == y.sum(p, "*"), name=f"balance[{p}]") for p in inst.processors}
 plant_req = {j: m.addConstr(y.sum("*", j) == need, name=f"plant[{j}]") for j, need in inst.plants.items()}
+m.update()
+print(m.NumConstrs, "rows so far")
+''')
+
+md(r"""
+## And conservation in the middle
+
+This is the row a transportation problem does not have: a processor cannot ship out what it did not
+take in. Say what the model would do with it left out, before running the cell.
+""")
+code(r'''
+balance = {p: m.addConstr(x.sum("*", p) == y.sum(p, "*"), name=f"balance[{p}]") for p in inst.processors}
 m.update()
 for c in m.getConstrs():
     print(f"{c.ConstrName:22} {c.Sense}  {c.RHS:6.1f}")
@@ -188,9 +200,40 @@ for p, v in by_proc.items():
 ''')
 
 md(r"""
-Everything from one mine, through one processor. The processor is at capacity and its shadow price
-is zero. Both of those are true at once; say why before going on, and what a one-kilotonne increase
-in demand would do to them.
+Everything from one mine, through one processor. The processor is full, and the price printed beside
+it is zero. Before the next cell, predict both directions separately: what would one MORE kilotonne
+of refining capacity at China save, and what would one FEWER cost?
+
+## What the zero is, and is not, saying
+
+Move China's capacity a kilotonne each way and re-solve. Nothing else changes.
+""")
+code(r'''
+neighbour = {}
+for delta in (-1.0, +1.0):
+    proc_cap["China"].RHS = inst.processors["China"] + delta
+    m.optimize()
+    neighbour[delta] = m.ObjVal
+proc_cap["China"].RHS = inst.processors["China"]        # put the table's capacity back
+m.optimize()
+
+cap = inst.processors["China"]
+print(f"China capacity {cap - 1:6.0f} kt   ${neighbour[-1.0]:>10,.2f}")
+print(f"China capacity {cap:6.0f} kt   ${m.ObjVal:>10,.2f}    <- the price printed above was "
+      f"{proc_cap['China'].Pi:+.2f}")
+print(f"China capacity {cap + 1:6.0f} kt   ${neighbour[+1.0]:>10,.2f}")
+''')
+
+md(r"""
+The zero describes one side only. A shadow price is a derivative, and here the cost has a **kink**:
+upward it is flat, because there is nothing left that is worth refining once demand is met; downward
+it is $3 a kilotonne, because the ore displaced has to travel a dearer route. The solver reported the
+right-hand slope. A different solver, or the same one with a different method, may report the left —
+both are correct, and neither is *the* shadow price, because at a kink there isn't one.
+
+That is worth knowing in a module about depending on a single supplier: read on its own, the zero
+says losing refining capacity in China is free, and the cell above says it is not. Which is also why
+the assertion at the bottom of this notebook compares costs and flows and leaves this dual out.
 
 ## Cap any one mine's share
 
@@ -247,7 +290,8 @@ for i in inst.mines:
     share_rows[i].RHS = 1.0 * inst.total_demand          # cap released
 m.remove(list(proc_cap.values()))
 m.optimize()
-print(f"without processor capacities: ${m.ObjVal:,.2f}   (with them: ${base_cost:,.2f})")
+loose_base = m.ObjVal          # named now: by the agreement cell below, m has the rows back
+print(f"without processor capacities: ${loose_base:,.2f}   (with them: ${base_cost:,.2f})")
 ''')
 
 md(r"""
@@ -269,12 +313,14 @@ m.optimize()
 
 print(f"demand + {EXTRA_KT:.0f} kt, no processor rows : ${loose:,.2f}   China refines {loose_china:.1f} kt of a {inst.processors['China']:.0f} kt capacity")
 print(f"demand + {EXTRA_KT:.0f} kt, with the rows    : ${tight:,.2f}   China refines {tight_china:.1f} kt")
+print(f"\ntable's demand restored, rows back: ${m.ObjVal:,.2f}   <- this is the model the check below reads")
 ''')
 
 md(r"""
-The two models agreed on the course's data because total demand happened to equal one processor's
-capacity exactly. One kilotonne later they disagree, and the one without the rows refines more than
-the refinery can hold. What kind of check would have caught the missing rows on the original data?
+One kilotonne later they disagree, and the one without the rows refines more than the refinery can
+hold. Put the two processor capacities beside the total requirement and say why the first solve could
+not tell the two models apart. Then: what kind of check would have caught the missing rows on the
+original data, where they agreed?
 
 ---
 
@@ -291,22 +337,39 @@ from orteach.tolerance import AGREEMENT_RTOL, rel_diff
 pkg_base = sourcing.solve(inst, env=env)
 pkg_curve = dict(sourcing.price_curve(inst, CAPS, env=env))
 pkg_loose = sourcing.solve(inst, processor_caps=False, env=env)
+
+# the raised-demand case, as a table the package is given rather than a row edited in place
+bigger = sourcing.Instance(inst.mines, inst.processors,
+                           dict(inst.plants, **{"Cell Plant A": inst.plants["Cell Plant A"] + EXTRA_KT}),
+                           inst.ore_cost, inst.metal_cost)
+pkg_tight_bigger = sourcing.solve(bigger, env=env)
+pkg_loose_bigger = sourcing.solve(bigger, processor_caps=False, env=env)
+
 print(f"base ${pkg_base.objective:,.2f}   by mine {pkg_base.by_mine()}")
 for cap, plan in pkg_curve.items():
     print(f"  cap {cap:.0%}: " + (f"${plan.objective:,.2f}" if plan.feasible else "infeasible"))
-print(f"smallest feasible equal share: {sourcing.smallest_feasible_share(inst):.4f}")
+print(f"smallest feasible equal share: {sourcing.smallest_feasible_share(inst):.4f}"
+      f"   (the mines can ship {sourcing.max_supply_at(inst, sourcing.smallest_feasible_share(inst)):.0f} kt there,"
+      f" against a requirement of {inst.total_demand:.0f})")
 ''')
 
 md(r"""
 ## The agreement assertion
 
-The base cost and plan, every point on the price curve including which caps are infeasible, and the
-cost without processor rows — hand-built against the package. The base optimum is unique (one path
-is strictly cheapest), so the flows are compared too.
+The base cost and plan, every point on the price curve including which caps are infeasible, the cost
+without processor rows, and both sides of the raised-demand case — hand-built against the package.
+The base optimum is unique (one path is strictly cheapest), so the flows are compared too.
+
+Each hand number is captured **where it was computed**, not read off the model at the end: by this
+point `m` has had its processor rows removed and re-added and its demand raised and restored, so
+`m.ObjVal` is the base case again and not the no-rows case it would be mistaken for. The processor
+dual is left out, for the reason the kink cell gave.
 """)
 code(r'''
 checks = [("base cost", base_cost, pkg_base.objective),
-          ("no processor rows", m.ObjVal, pkg_loose.objective)]
+          ("no processor rows", loose_base, pkg_loose.objective),
+          (f"+{EXTRA_KT:.0f} kt, rows", tight, pkg_tight_bigger.objective),
+          (f"+{EXTRA_KT:.0f} kt, no rows", loose, pkg_loose_bigger.objective)]
 for i in inst.mines:
     checks.append((f"base kt from {i}", by_mine[i], pkg_base.by_mine()[i]))
 for cap in CAPS:
@@ -334,9 +397,12 @@ md(r"""
 - The domestic mine ships to China at $8.0/kt and to the domestic processor at $3.0. Find the ore
   tariff at which it enters the uncapped solution on price alone — without re-solving, from the
   reduced costs.
-- The lithium supply-chain models this module grew from live in their own repository,
-  `sear-labs/advopt-lithiumsc`, with stochastic demand, Benders decomposition and interdiction. Open
-  its `01_deterministic` notebook and find this problem inside it.
+- The middle-layer structure above — the balance row saying a processor cannot ship what it did not
+  receive — carries a far larger model in `sear-labs/advopt-lithiumsc`: six sites, two regions,
+  twenty years and lumpy capacity, later gaining stochastic demand, Benders decomposition and
+  interdiction. Its `03_network_core` notebook builds that network a block at a time. Find the row
+  above inside it, and say what had to be added around it to turn a sourcing model into a planning
+  one. The three-mine instance here is not in that repository; the structure is.
 """)
 
 nb = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},

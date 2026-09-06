@@ -26,8 +26,8 @@ with a sulfur cap and a demand cap and a price. Decide the flows to make the mos
 If the sulfur content of the pool were known, this would be an LP. It is not known: it depends on
 how much of each source went in, which is what you are deciding. So the sulfur balance at the pool
 multiplies a quality by a flow — two unknowns — and the model is **bilinear**. That single product
-makes the problem nonconvex, gives it more than one local optimum, and is the reason Haverly's
-example from 1978 is still the standard test of a global solver.
+is what makes the problem nonconvex, and is the reason Haverly's example from 1978 is still the
+standard test of a global solver.
 """)
 
 md(r"""
@@ -130,11 +130,16 @@ model.
 ## Flows, with boxes
 
 One flow per pooled source into the pool, one per product out of the pool, one per (direct source,
-product). Every flow gets a finite upper bound: bilinear terms need boxes, and a box above the largest
-demand costs nothing.
+product). Every flow gets a finite upper bound, because spatial branch-and-bound builds its convex
+envelopes over boxes and an unbounded bilinear term gives it nothing to build over. Work out the
+smallest box that cannot bind before reading the next cell: what is the most any single flow could
+ever carry?
 """)
 code(r'''
-FLOW_CAP = 250.0            # above any demand; a box for the solver, not a constraint of the problem
+# Total demand: nothing sold exceeds a product's demand, so no one flow can exceed their sum.
+# The source used 250 - above the LARGEST demand but below the sum, so it was inert at the shipped
+# prices and would not have been at others.
+FLOW_CAP = sum(inst.demand.values())
 
 m = gp.Model("pooling", env=env)
 tolerance.apply(m)
@@ -151,8 +156,10 @@ md(r"""
 
 The pool's sulfur fraction $q_P$ and each product's delivered fraction $q_j$ are unknowns. The pool's
 sulfur balance says *sulfur in equals sulfur out*: the fraction times the total flow through the
-pool equals the sulfur the sources brought. $q_P \times$ flow is the bilinear term. Say why it cannot
-be written any other way before running the cell.
+pool equals the sulfur the sources brought. $q_P \times$ flow is the bilinear term. There are other
+ways to write this model — one of them is the third exercise at the bottom — and every one of them
+still multiplies two unknowns somewhere. Before running the cell, say where the product would go if
+you eliminated $q_P$.
 """)
 code(r'''
 q_pool = m.addVar(lb=0.0, ub=1.0, name="pool_sulfur")
@@ -261,7 +268,7 @@ for p in inst.products:
 md(r"""
 ---
 
-## Why a local method can get this wrong
+## The landscape behind the bilinear row
 
 Pin the pool's sulfur fraction at a few values and re-solve each time. With $q_P$ fixed the model
 tells you the best you can do *given that pool*, and the profits trace the landscape a downhill
@@ -278,13 +285,15 @@ for fixed in (0.010, 0.015, 0.020, 0.025, 0.030):
           f"Y {from_pool['Y'].X + sum(direct[s, 'Y'].X for s in inst.direct):6.1f}")
 q_pool.LB, q_pool.UB = 0.0, 1.0          # release the pin
 m.optimize()
+print(f"\npin released, re-solved: profit {m.ObjVal:8.2f}   pool sulfur {q_pool.X:.4f}"
+      f"   <- back to the free optimum, and the values the check below reads")
 ''')
 
 md(r"""
-Two profitable regions with a valley between them. A method that starts on the wrong side climbs to
-the wrong hump and stops, honestly reporting a local optimum. What does each hump correspond to in
-terms of which product the pool serves, and what would a solver need in order to know there was a
-higher one?
+Two profitable regions with a valley between them, and the run above ends back at the free optimum.
+What does each hump correspond to in terms of which product the pool serves? If a downhill method
+were started at the right-hand one, what would it report, and what would it have to be given in order
+to know there was anything better?
 
 ---
 
@@ -299,16 +308,21 @@ from orteach import nonconvex as nc
 from orteach.tolerance import AGREEMENT_RTOL, rel_diff
 
 pkg = nc.solve_pooling(inst, flow_cap=FLOW_CAP, env=env)
+pkg_landscape = nc.pooling_landscape(inst, list(landscape), flow_cap=FLOW_CAP, env=env)
 print(f"{pkg.label}: profit {pkg.objective:.2f}   bound {pkg.bound:.2f}   pool sulfur {pkg.pool_sulfur:.4f}")
 print("profit from flows:", round(nc.profit_of(inst, pkg), 6))
-print("delivered sulfur :", {p: round(nc.delivered_sulfur(inst, pkg, p), 4) for p in inst.products})
+# only for products that are actually made: an unmade one has no delivered fraction to report
+print("delivered sulfur :", {p: round(nc.delivered_sulfur(inst, pkg, p), 4)
+                             for p in inst.products if pkg.sold(p) > tolerance.FEASIBILITY_ATOL})
+print("landscape        :", pkg_landscape)
 ''')
 
 md(r"""
 ## The agreement assertion
 
 The hand-built model against the package, number by number: profit, proven bound, every flow, the
-pool's fraction and the delivered fraction of every product that is made. The optimum here is
+pool's fraction, the delivered fraction of every product that is made, and every point of the
+landscape sweep. The optimum here is
 unique — the cheapest way to fill Y's demand at exactly its cap is one specific blend, and X cannot
 be made at a profit — so comparing flows is legitimate. A product that is not made has an undefined
 quality variable on both sides, and comparing two undefined numbers would test nothing but the
@@ -326,6 +340,8 @@ for p in inst.products:
         checks.append((f"delivered sulfur {p}", q_prod[p].X, pkg.product_sulfur[p]))
 for (s, p) in direct:
     checks.append((f"{s} -> {p}", direct[s, p].X, pkg.direct[s, p]))
+for fixed, profit in landscape.items():
+    checks.append((f"landscape at {fixed:.3f}", profit, pkg_landscape[fixed]))
 
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} comparisons")

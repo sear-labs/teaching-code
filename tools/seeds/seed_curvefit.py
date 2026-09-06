@@ -134,13 +134,17 @@ For each observation define $o_i = 1/(\beta_1 - v_i)$. That is the same as $(\be
 — a **bilinear** equality, a product of two unknowns, which the solver accepts. Six new variables,
 six new rows, and the division is gone.
 
-Every variable in a bilinear term needs a finite box; spatial branch-and-bound splits boxes, and the
-tighter they are the faster the proof. $\beta_1$ must exceed the largest volume, and the boxes on the
-$o_i$ follow from the box on $\beta_1$.
+Every variable in a bilinear term needs a finite box: spatial branch-and-bound relaxes each product
+to a convex envelope over its box, solves, splits the box and repeats. $\beta_1$ must exceed the
+largest volume, and the boxes on the $o_i$ follow from the box on $\beta_1$. Whether a *tighter* box
+also means a *faster* proof is a separate question, and a cell further down measures it rather than
+assuming it.
 """)
 code(r'''
 B1_MIN = max(volume) + 1.0      # every denominator positive
 B1_MAX = 50_000.0               # a capacity seven times the busiest observation; the box, not a belief
+# B1_MIN is the one bound carrying a modelling claim rather than a convenience: below it a
+# denominator changes sign. It is passed to the package at the bottom, so an edit here reaches both.
 B0_MAX = 5e6
 
 m = gp.Model("congestion fit", env=env)
@@ -226,13 +230,15 @@ Three term folders of the graduate course shipped this fit with the residual var
 squares be higher or lower than the one above, and where will the curve sit relative to the points?
 """)
 code(r'''
+PR_BOX = 200.0                  # a box on the forced-positive residuals; the largest observed
+                                # travel time is 34, so it is far from binding
 m_pos = gp.Model("congestion fit, residuals >= 0", env=env)
 tolerance.apply(m_pos)
 m_pos.Params.NonConvex = 2
 p0 = m_pos.addVar(lb=0.0, ub=B0_MAX, name="b0")
 p1 = m_pos.addVar(lb=B1_MIN, ub=B1_MAX, name="b1")
 po = [m_pos.addVar(lb=1.0 / (B1_MAX - v), ub=1.0 / (B1_MIN - v)) for v in volume]
-pr = [m_pos.addVar(lb=0.0, ub=200.0) for _ in volume]             # <-- the one change
+pr = [m_pos.addVar(lb=0.0, ub=PR_BOX) for _ in volume]            # <-- the one change
 for i, v in enumerate(volume):
     m_pos.addConstr((p1 - v) * po[i] == 1.0)
     m_pos.addConstr(p0 * po[i] - travel[i] == pr[i])
@@ -248,23 +254,77 @@ print("residuals:", "  ".join(f"{x.X:+.3f}" for x in pr))
 
 md(r"""
 Every residual is now zero or positive. What has that bound told the solver the curve must do, and is
-the result still a least-squares fit in any sense? The source notebooks ran this for 200 seconds
-without closing the gap — the boxes above are what make the proof take a fraction of a second.
+the result still a least-squares fit in any sense?
+
+## What the boxes actually buy
+
+The source notebooks ran a fit like this for 200 seconds without closing the gap, and the boxes are
+the usual suspect. That is a claim worth testing rather than repeating. Take them away — one at a
+time, then all together — and give each run a few seconds. Predict first: with every bound gone, will
+the solver fail to **find** the right curve, fail to **prove** it, or neither?
+""")
+code(r'''
+PROOF_TIME_LIMIT = 5.0          # seconds: long enough to show a gap, short enough to ship
+STATUS = {2: "optimal", 9: "time limit", 13: "suboptimal"}
+INF = GRB.INFINITY
+
+trials = {"all five bounds, as above": (B1_MIN, B1_MAX, B0_MAX),
+          "upper bound on b1 removed": (B1_MIN, INF,    B0_MAX),
+          "upper bound on b0 removed": (B1_MIN, B1_MAX, INF),
+          "lower bound on b1 removed": (0.0,    B1_MAX, B0_MAX),
+          "every bound removed":       (0.0,    INF,    INF)}
+
+print(f"{'model':30} {'status':11} {'nodes':>9} {'best':>10} {'gap':>8}")
+for label, (lo, hi, b0_hi) in trials.items():
+    mt = gp.Model(env=env)
+    tolerance.apply(mt)
+    mt.Params.NonConvex = 2
+    mt.Params.TimeLimit = PROOF_TIME_LIMIT
+    t0 = mt.addVar(lb=0.0, ub=b0_hi)
+    t1 = mt.addVar(lb=lo, ub=hi)
+    to = [mt.addVar(lb=0.0 if hi == INF else 1.0 / (hi - v),
+                    ub=INF if lo <= v else 1.0 / (lo - v)) for v in volume]
+    tr = [mt.addVar(lb=-INF) for _ in volume]
+    for i, v in enumerate(volume):
+        mt.addConstr((t1 - v) * to[i] == 1.0)
+        mt.addConstr(t0 * to[i] - travel[i] == tr[i])
+    mt.addConstr(t0 <= RATIO_CAP * t1)
+    mt.setObjective(gp.quicksum(e * e for e in tr), GRB.MINIMIZE)
+    mt.optimize()
+    best = f"{mt.ObjVal:10.4f}" if mt.SolCount else "         -"
+    print(f"{label:30} {STATUS.get(mt.Status, mt.Status):11} {mt.NodeCount:9.0f} {best} {mt.MIPGap:8.1%}")
+''')
+
+md(r"""
+Removing any *single* bound leaves the proof intact — and dropping the upper bound on $\beta_1$ makes
+it cheaper, not dearer, so "tighter is faster" is not a rule. Remove them all and the picture changes
+completely: the solver still reaches 4.8076 within seconds, and never proves it. The gap stays at
+100% because the convex envelope of an unbounded product carries no information, so the lower bound
+sits at zero and the solver has no evidence it has finished.
+
+What a box buys is therefore not the answer. It is the **proof**. Which of the two you needed is a
+question about what the number is for.
 
 ## A second opinion from a different method
 
 `scipy.optimize.least_squares` fits the same curve with no lifting at all: it takes the residual
 function as written and walks downhill from a starting point. It proves nothing, and it could stop at
 a local minimum. Compare it to the proven answer — the sum of squares, and the parameters separately.
+
+The residual $\beta_0/(\beta_1 - v) - t$ is the model, so it lives in the package as
+`congestion_residuals` and is passed in rather than written again here. That is the same rule the
+tables follow: one definition, both callers.
 """)
 code(r'''
 from scipy.optimize import least_squares
 import numpy as np
 
+from orteach.nonconvex import congestion_residuals
+
 v_arr, t_arr = np.array(volume), np.array(travel)
 B1_START = 10_000.0             # a starting guess for capacity; try others
 
-local = least_squares(lambda prm: prm[0] / (prm[1] - v_arr) - t_arr, x0=[1e5, B1_START],
+local = least_squares(congestion_residuals, x0=[1e5, B1_START], args=(v_arr, t_arr),
                       bounds=([0.0, B1_MIN], [np.inf, np.inf]))
 sse_local = float(np.sum(local.fun ** 2))
 print(f"scipy: sum of squares {sse_local:.6f}   b0 = {local.x[0]:,.3f}   b1 = {local.x[1]:,.3f}")
@@ -283,15 +343,16 @@ down?
 # Now the streamlined version
 
 Two lifted models built by hand from the same six rows, so the package owns the construction:
-`fit_congestion` takes the table and the boxes as arguments and returns the fit with its proven
-bound; `fit_congestion_scipy` is the local method, kept as the independent check it is.
+`fit_congestion` takes the table and all four boxes as arguments — including `B1_MIN`, so an edit up
+there reaches the check down here — and returns the fit with its proven bound; `fit_congestion_scipy`
+is the local method, kept as the independent check it is, started from the same guess.
 """)
 code(r'''
 from orteach import nonconvex as nc
-from orteach.tolerance import AGREEMENT_RTOL, FEASIBILITY_ATOL, rel_diff
+from orteach.tolerance import AGREEMENT_RTOL, CROSS_METHOD_RTOL, rel_diff
 
-pkg = nc.fit_congestion(obs, b1_max=B1_MAX, b0_max=B0_MAX, ratio_cap=RATIO_CAP, env=env)
-pkg_local = nc.fit_congestion_scipy(obs, b1_start=B1_START)
+pkg = nc.fit_congestion(obs, b1_min=B1_MIN, b1_max=B1_MAX, b0_max=B0_MAX, ratio_cap=RATIO_CAP, env=env)
+pkg_local = nc.fit_congestion_scipy(obs, b1_start=B1_START, b1_min=B1_MIN)
 print(f"{pkg.label:22} SSE {pkg.sse:.6f}   b0 {pkg.b0:,.3f}   b1 {pkg.b1:,.3f}   bound {pkg.bound:.6f}")
 print(f"{pkg_local.label:22} SSE {pkg_local.sse:.6f}   b0 {pkg_local.b0:,.3f}   b1 {pkg_local.b1:,.3f}")
 ''')
@@ -301,8 +362,12 @@ md(r"""
 
 The hand-built global fit against the package's, number by number: sum of squares, proven bound,
 both parameters and every residual — same solver, same tolerances, same boxes, so `AGREEMENT_RTOL`
-is a claim the computation supports. The local method is held to a looser standard, on the sum of
-squares only, because its stopping rule is not Gurobi's and the parameters sit on a flat ridge.
+is a claim the computation supports. The hand-written scipy call is compared to the package's the
+same way, because both minimise the same residual function from the same start.
+
+Gurobi against scipy is a different kind of comparison and gets a different tolerance,
+`CROSS_METHOD_RTOL`: two methods with different stopping rules, agreeing on the sum of squares but
+not on where along the ridge they stopped. Only the sum of squares is asserted.
 """)
 code(r'''
 checks = [("sum of squares", sse_hand, pkg.sse),
@@ -311,6 +376,8 @@ checks = [("sum of squares", sse_hand, pkg.sse),
           ("b1", b1_hand, pkg.b1)]
 for i, e in enumerate(resid_hand):
     checks.append((f"residual {i}", e, pkg.residuals[i]))
+checks.append(("scipy sum of squares", sse_local, pkg_local.sse))
+checks.append(("scipy b1", float(local.x[1]), pkg_local.b1))
 
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} comparisons")
@@ -318,8 +385,9 @@ for name, hand, packaged in checks[:4]:
     print(f"  {name:16} hand {hand:14.6f}   package {packaged:14.6f}   rel {rel_diff(hand, packaged):.2e}")
 print("  ...")
 assert worst < AGREEMENT_RTOL, f"notebook and package disagree by {worst:.2e}"
-assert abs(pkg_local.sse - pkg.sse) < FEASIBILITY_ATOL, "the local method found a different minimum"
-print(f"\nnotebook and package agree to {worst:.1e}; scipy's sum of squares is within {abs(pkg_local.sse - pkg.sse):.1e}")
+cross = rel_diff(pkg_local.sse, pkg.sse)
+assert cross < CROSS_METHOD_RTOL, f"the two methods found different minima: {cross:.2e}"
+print(f"\nnotebook and package agree to {worst:.1e}; the two methods agree to {cross:.1e}")
 ''')
 
 md(r"""
@@ -327,8 +395,9 @@ md(r"""
 
 ## Where to take this next
 
-- Set `B1_MAX` to one million and re-solve. How long does the proof take now, and why does a box the
-  solver never touches at the optimum still cost time?
+- The box cell above dropped bounds one at a time, then all five at once. Fill in the middle: drop
+  them in pairs, then in threes. How few does it take before the gap stops closing, and does it
+  matter which ones go?
 - Start scipy from `B1_START = 8_000` and from `100_000`. Does it always reach the same minimum?
   What would you do if it did not, and how does that compare with what Gurobi does?
 - Fit the straight line $t = \beta_0 + \beta_1 v$ to the same six points — no lifting needed. Compare

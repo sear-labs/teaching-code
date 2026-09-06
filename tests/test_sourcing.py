@@ -17,7 +17,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
 from orteach import sourcing as src  # noqa: E402
-from orteach.tolerance import AGREEMENT_RTOL, FEASIBILITY_ATOL, rel_diff  # noqa: E402
+from orteach.tolerance import (AGREEMENT_RTOL, CLOSED_FORM_ATOL,  # noqa: E402
+                               FEASIBILITY_ATOL, rel_diff)
+
+# Not a tolerance: a probe step for bracketing the feasibility threshold. Large
+# enough to move the cap clear of the boundary, small enough that no other
+# breakpoint of the supply curve lies inside it.
+SHARE_PROBE_STEP = 1e-3
 
 
 @pytest.fixture(scope="module")
@@ -56,9 +62,9 @@ def test_the_price_curve_the_module_states(inst):
     """Module 4's markdown: 75% costs 10%, 50% costs 20%, 40% costs 28%,
     below about 34% infeasible. All four reproduce."""
     curve = dict(src.price_curve(inst, [None, 0.75, 0.5, 0.4, 0.34, 0.33]))
-    assert abs(curve[0.75].objective / 600.0 - 1.10) < 1e-9
-    assert abs(curve[0.5].objective / 600.0 - 1.20) < 1e-9
-    assert abs(curve[0.4].objective / 600.0 - 1.28) < 1e-9
+    assert rel_diff(curve[0.75].objective / 600.0, 1.10) < AGREEMENT_RTOL
+    assert rel_diff(curve[0.5].objective / 600.0, 1.20) < AGREEMENT_RTOL
+    assert rel_diff(curve[0.4].objective / 600.0, 1.28) < AGREEMENT_RTOL
     assert curve[0.34].feasible and not curve[0.33].feasible
 
 
@@ -69,22 +75,70 @@ def test_cost_never_falls_as_the_cap_tightens(inst):
         assert b >= a - FEASIBILITY_ATOL
 
 
-def test_smallest_feasible_share_is_one_third(inst):
-    assert abs(src.smallest_feasible_share(inst) - 1.0 / 3.0) < 1e-12
-    assert src.solve(inst, share_cap=1.0 / 3.0).feasible
-    assert not src.solve(inst, share_cap=1.0 / 3.0 - 1e-3).feasible
+def test_smallest_feasible_share_is_one_third_on_the_shipped_mines(inst):
+    """120/60/40 against 120 kt: every mine can reach a third of demand, so
+    the 1/k floor is the answer - and it is tight."""
+    c = src.smallest_feasible_share(inst)
+    assert abs(c - 1.0 / 3.0) < CLOSED_FORM_ATOL
+    assert src.solve(inst, share_cap=c).feasible
+    assert not src.solve(inst, share_cap=c - SHARE_PROBE_STEP).feasible
+
+
+def test_smallest_feasible_share_is_not_just_the_one_over_k_floor(inst):
+    """The shipped mines cannot tell the two formulas apart, which is how a
+    wrong one survived. Shrink the domestic mine to 20 kt and they part: the
+    floor still says 1/3, where NO plan exists, because the two mines that can
+    reach the cap must cover what the small one cannot. The answer is 5/12."""
+    small = src.Instance(dict(inst.mines, **{"Domestic": 20.0}), inst.processors,
+                         inst.plants, inst.ore_cost, inst.metal_cost)
+    c = src.smallest_feasible_share(small)
+    assert abs(c - 5.0 / 12.0) < CLOSED_FORM_ATOL
+    assert not src.solve(small, share_cap=1.0 / 3.0).feasible
+    assert src.solve(small, share_cap=c).feasible
+    assert not src.solve(small, share_cap=c - SHARE_PROBE_STEP).feasible
+
+
+def test_the_share_threshold_is_where_the_mines_can_just_cover_demand(inst):
+    """The formula against the definition it comes from, on three shapes of
+    instance: at the answer the capped mines reach demand exactly, and a step
+    below it they cannot."""
+    for change in ({}, {"Domestic": 20.0}, {"DRC": 200.0, "Australia": 15.0, "Domestic": 15.0}):
+        ii = src.Instance(dict(inst.mines, **change), inst.processors, inst.plants,
+                          inst.ore_cost, inst.metal_cost)
+        c = src.smallest_feasible_share(ii)
+        assert src.max_supply_at(ii, c) >= ii.total_demand - FEASIBILITY_ATOL, change
+        assert src.max_supply_at(ii, c - SHARE_PROBE_STEP) < ii.total_demand, change
+        assert src.solve(ii, share_cap=c).feasible, change
+
+
+def test_no_share_cap_helps_when_the_mines_cannot_meet_demand(inst):
+    """A share cap only redistributes; it cannot create ore. Say so loudly
+    rather than returning a number that looks like an answer."""
+    starved = src.Instance({"DRC": 40.0, "Australia": 30.0, "Domestic": 20.0}, inst.processors,
+                           inst.plants, inst.ore_cost, inst.metal_cost)
+    with pytest.raises(ValueError):
+        src.smallest_feasible_share(starved)
 
 
 def test_the_missing_processor_cap_is_only_silent_by_accident(inst, base):
-    """Drop the processor rows: same 600, because demand equals China's
-    capacity exactly. Add one kilotonne of demand and the two models part."""
+    """Drop the processor rows: still 600, because total demand equals China's
+    capacity exactly. That coincidence has two sides and both are pinned here -
+    a kilotonne more demand, and a kilotonne less refining capacity."""
     no_caps = src.solve(inst, processor_caps=False)
     assert rel_diff(no_caps.objective, base.objective) < AGREEMENT_RTOL
+
+    # One kilotonne more demand. Once China is full the marginal tonne routes
+    # Australia -> Domestic at 8; without the row it stays on China at 7. The
+    # two models differ by exactly one dollar, so assert the dollar.
     bigger = src.Instance(inst.mines, inst.processors, dict(inst.plants, **{"Cell Plant A": 71.0}),
                           inst.ore_cost, inst.metal_cost)
     with_cap, without = src.solve(bigger), src.solve(bigger, processor_caps=False)
-    # the marginal kilotonne costs 7 through China (Australia -> China) and 8 through the
-    # domestic refinery once China is full: the two models differ by exactly one dollar
-    assert with_cap.objective > without.objective + 0.5
+    assert abs((with_cap.objective - without.objective) - 1.0) < FEASIBILITY_ATOL
     assert with_cap.by_processor()["China"] <= 120.0 + FEASIBILITY_ATOL
     assert without.by_processor()["China"] > 120.0 + 0.5
+
+    # One kilotonne less refining capacity - the other side, and the reason the
+    # notebook's shadow price of zero is one-sided: going DOWN costs $3 a tonne.
+    narrower = src.Instance(inst.mines, dict(inst.processors, China=119.0), inst.plants,
+                            inst.ore_cost, inst.metal_cost)
+    assert abs(src.solve(narrower).objective - 603.0) < FEASIBILITY_ATOL

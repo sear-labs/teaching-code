@@ -38,6 +38,20 @@ FEASIBILITY_ATOL = 1e-6
 # a name (review of 2026-09-05).
 INTEGRALITY_ATOL = 1e-9
 
+# What a SECOND METHOD's answer may differ from the solver's by, relative. A local
+# optimiser, a closed-form formula or a hand recursion is not running Gurobi's
+# stopping rule, so it cannot be held to AGREEMENT_RTOL: the traffic fit's scipy
+# check lands 2.7e-8 away in relative terms, which is far above 1e-9 and far below
+# any modelling difference. Distinct from AGREEMENT_RTOL, which is the notebook and
+# the package running the SAME method and having no excuse to differ.
+CROSS_METHOD_RTOL = 1e-6
+
+# Absolute tolerance on a quantity computed in closed form - a share, a ratio, a
+# formula evaluated by hand - with no solver and no iteration anywhere in it.
+# Floating point on numbers this size leaves error near 1e-16, so this sits four
+# orders above the noise and far below any modelling error worth catching.
+CLOSED_FORM_ATOL = 1e-12
+
 # Absolute tolerance on numpy linear-algebra results - a solved steady state,
 # a matrix power, a fundamental matrix - on the small, well-conditioned
 # systems the teaching notebooks use. Not a solver tolerance; numpy has none to

@@ -1,8 +1,9 @@
 # 06 — Nonlinear and convex
 
 `curve_fit_lifting.ipynb` — a congestion curve with a division in it, lifted for a global QCQP
-solver; the fit that only over-predicted. `pooling.ipynb` — Haverly's pooling problem, bilinear
-quality balances, the landscape a local method gets lost in. Package: `orteach.nonconvex`.
+solver, and what one bound on the residual variables did to three terms of a graduate course.
+`pooling.ipynb` — Haverly's pooling problem and its bilinear quality balances. Package:
+`orteach.nonconvex`.
 
 ## Cournot, Stackelberg and the exact MIQP are in the advopt repository
 

@@ -32,6 +32,34 @@ This is written down rather than left implicit because it is the decision somebo
 want to undo the first time a course needs something the library does not have. **The answer is to
 add the subject here, not to fork a course-shaped copy.**
 
+### Why this is the standard's answer, not an exception to it
+
+The doubt is worth answering once with citations, because "surely each of these should be its own
+repository" is a reasonable first instinct and it has already been raised once.
+
+- **The granularity rule is Part 2b:** *a repo is a unit that is versioned, released and cloned
+  together — ask whether anyone would ever want this without the rest of it.* It is not one repo per
+  notebook, per course, or per model. Nothing here is released on its own, and every notebook
+  depends on `src/orteach` and on the agreement assertion that ties the two halves together.
+- **Part 2 routes this shape here on purpose.** It says A + C should be split so one repo does not
+  have to satisfy two rigor levels, and then says **A + T is the subject of Part 4** — that is, a
+  package and its teaching notebooks stay together and Part 4 governs the boundary between them.
+  Splitting `src/` from `notebooks/` would break the one property Part 4 exists to create.
+- **Part 0 names this library in the singular and endorses its organisation:** *the teaching library
+  sits beside this document, not below it. It is organised by topic rather than by course or
+  semester, so one notebook serves several courses across several years.*
+- **The split Part 0 does demand is about visibility, not granularity:** public topic material on
+  one side, consolidated observations on student work on the other, because one repository has one
+  visibility and the stricter rule would otherwise win. That split is already made, and `.gitignore`
+  enforces it by pattern rather than by good intentions.
+
+**What is genuinely open is the other direction.** `sear-labs/advopt-lithiumsc` has the same shape as
+this repository — executed teaching notebooks plus a package plus an agreement assertion — and the
+line between "a course series that is cloned and taught as a unit" and "the topic library" is a
+judgement nobody has written down. `06`, `10`, `12` and `13` point at it rather than copying it,
+which is the right behaviour under either answer, so this is not urgent. Decide it before a third
+repository of this shape exists.
+
 ## Layout
 
 ```

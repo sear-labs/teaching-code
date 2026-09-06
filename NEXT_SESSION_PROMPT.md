@@ -4,7 +4,15 @@ Everything a cold session needs is on disk: `REVIEW_QUEUE.md` holds the open fin
 `CLAUDE.md` Part 11 holds this library's conventions, and `git log` holds the defect record. This
 file is just the starting message, kept here so it survives a moved folder or a lost chat.
 
-Paste the block below into a new chat opened in this folder.
+**The short version**, if you would rather not paste the whole block — any session opened in this
+folder can be started with one line:
+
+```
+Read NEXT_SESSION_PROMPT.md in this repository and do what it says.
+```
+
+Paste the longer block below instead when you want the session to start with the scope already in
+front of it rather than after a file read.
 
 ---
 

@@ -6,7 +6,7 @@
 >
 >     https://github.com/sear-labs/code-standard    canonical - the same from any machine
 >     a local clone, if you have one                faster; on the UTA desktop that is
->                                                   C:\dev\code-standard\   (outside OneDrive)
+>                                                   C:\Users\jonesec\dev\repo\ops\code-standard\   (outside OneDrive)
 >
 > **Read it first and last.** First because it decides how the work is done; last because a change
 > you are about to make may be one it already settles.
@@ -114,7 +114,10 @@ correctly and a fifteenth would too. Keep the padding when adding one.
 ## Working notes that cost time to learn here
 
 Machine and tool facts, not portable rules. They lived in this session's auto-memory, which is keyed
-by folder path — so moving this repository to `C:\dev\` orphaned them. They belong with the repository.
+by folder path — so each move of this repository orphans them unless the directory is renamed to match.
+They belong with the repository. Moved twice so far: to `C:\dev\` on 2026-09-05, then to
+`C:\Users\jonesec\dev\repo\teaching\teaching-code` on 2026-09-06, whose key is
+`~\.claude\projects\C--Users-jonesec-dev-repo-teaching-teaching-code`.
 
 - **Backticks inside a Bash-tool heredoc break the call**, with `unexpected EOF while looking for
   matching`. Markdown in a commit message or a seed script is full of them. Write those files with

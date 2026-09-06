@@ -50,7 +50,7 @@ the nits are not.
 
 Checked 2026-09-06: working tree clean, **no remote**, 49 commits, last one 2026-09-05 23:35. The
 parallel session that was committing to it appears to have stopped — nothing has touched it since.
-A bare mirror exists at `C:\dev\mirrors\Classes-REE-4301-Energy-System-Modeling.git`, on the same
+A bare mirror exists at `C:\Users\jonesec\dev\store\mirrors\Classes-REE-4301-Energy-System-Modeling.git`, on the same
 disk, which is redundancy and not backup.
 
 **The series repository needs fresh history, not a push of that one.** Three blockers, none of them
@@ -137,7 +137,7 @@ The same ones that bit here, and the reason the split above puts a strong model 
   pushed** — that is the last thing the REE work should do.
 - Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
 - `Documents\Classes\Advanced Opt Modeling Examples` still exists — a process held it open during
-  the 2026-09-05 move, so the new copy at `C:\dev\advopt-lithiumsc` is a fresh clone rather than a
+  the 2026-09-05 move, so the new copy at `C:\Users\jonesec\dev\repo\teaching\advopt-lithiumsc` is a fresh clone rather than a
   move. It is one commit stale and holds 54 ignored files including a `gurobi.lic`. Delete it once
   nothing holds it, after deciding what to keep.
 - **Two repositories are still inside OneDrive, deliberately**: `Classes\REE 4301 - Energy System

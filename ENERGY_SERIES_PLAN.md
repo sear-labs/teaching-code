@@ -205,11 +205,11 @@ assumes the previous one landed. Where to run each is the first line of its prom
 
 ## 1. Scaffold
 
-Run in `C:\dev\teaching-code`, because this plan and the source folder are both reachable from there.
+Run in `C:\Users\jonesec\dev\repo\teaching\teaching-code`, because this plan and the source folder are both reachable from there.
 
 ```
-Work in C:\dev\teaching-code. Read ENERGY_SERIES_PLAN.md, then create the repository
-it describes at C:\dev\energy-system-modeling with FRESH history: git init, not a
+Work in C:\Users\jonesec\dev\repo\teaching\teaching-code. Read ENERGY_SERIES_PLAN.md, then create the repository
+it describes at C:\Users\jonesec\dev\repo\teaching\energy-system-modeling with FRESH history: git init, not a
 clone or a filter of the REE folder.
 
 Take only the thirteen notebooks from
@@ -228,7 +228,7 @@ notebook yet. Create sear-labs/energy-system-modeling public and push.
 
 ## 2. Environment and diagnostic
 
-Run in `C:\dev\energy-system-modeling` from here on.
+Run in `C:\Users\jonesec\dev\repo\teaching\energy-system-modeling` from here on.
 
 ```
 Read ENERGY_SERIES_PLAN.md. Build an environment that can run all thirteen
@@ -292,7 +292,7 @@ Read ENERGY_SERIES_PLAN.md. Write the three remaining new notebooks
 tools/build_figures.py across from the REE folder and extend its
 assert-against-published-output discipline to every figure.
 
-Finally, in C:\dev\teaching-code, repoint README.md and
+Finally, in C:\Users\jonesec\dev\repo\teaching\teaching-code, repoint README.md and
 notebooks/12_energy_systems_pypsa/README.md at the new repository URL instead of
 the OneDrive path, and move this plan file into the new repository.
 ```

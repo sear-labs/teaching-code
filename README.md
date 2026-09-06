@@ -9,7 +9,7 @@ stochastic programming all serve more than one course.
 `CLAUDE.md` here **points at** the Code and Teaching Standard rather than copying it, and carries
 this library's `Part 11`. Claude Code reads it automatically in every session in this folder; the
 standard itself is read from `sear-labs/code-standard`, or a local clone outside any syncing
-folder - on this machine `C:\dev\code-standard\`. It used to be a copy, which drifted 23 lines
+folder - on this machine `C:\Users\jonesec\dev\repo\ops\code-standard\`. It used to be a copy, which drifted 23 lines
 behind with nothing to say so.
 
 ---

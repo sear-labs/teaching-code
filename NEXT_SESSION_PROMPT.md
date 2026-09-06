@@ -17,7 +17,7 @@ front of it rather than after a file read.
 ---
 
 ```
-Work in Classes\Teaching Code. Read REVIEW_QUEUE.md first, then CLAUDE.md Part 11.
+Work in C:\dev\teaching-code. Read REVIEW_QUEUE.md first, then CLAUDE.md Part 11.
 The queue holds two fresh-context reviews verbatim with a status line per finding.
 
 Fix the nine open findings, B1 through B9, on notebooks 06 (curve_fit_lifting,
@@ -60,6 +60,15 @@ Update the status lines in REVIEW_QUEUE.md as you close findings.
   seventeen, and `../../src` resolves from a notebook folder the way the setup cell expects.
 - Because it is public now, `git push` after committing, and remember that anything committed here
   is immediately visible.
+- **This repository moved out of OneDrive on 2026-09-05**, to `C:\dev\teaching-code`. The standard
+  adopted the rule that day: Known Folder Move redirects `Documents` into OneDrive, so a path
+  beginning `Documents\` is a synced path, and a `.git` tree under a second syncing system is the
+  hazard. `code-standard` and `advopt-lithiumsc` moved the same day, to `C:\dev\code-standard` and
+  `C:\dev\advopt-lithiumsc`. Pointers in this repository, in advopt and in `~/.claude/CLAUDE.md`
+  were repointed. **`Documents\Classes\Advanced Opt Modeling Examples` still exists** — a process
+  held it open, so the new copy is a fresh clone rather than a move. It is one commit stale and
+  holds 54 ignored files including a `gurobi.lic`. Delete it once nothing holds it, after deciding
+  what to keep.
 
 ## Second scope item: build the REE 4301 series as its own repository
 
@@ -110,3 +119,12 @@ and contain none, and the Canvas scripts read their token from the environment.
 - The REE 4301 modules beyond M0 have not been verified by running them.
 - `REE 4301` is still pointed at by OneDrive path from this README and from `12`, because that
   repository has no remote yet.
+- **Two repositories are still inside OneDrive, deliberately.** `Classes\REE 4301 - Energy System
+  Modeling` (2.9 GB) and `Classes\Curriculum Working Folder` (6.6 GB) were left there on 2026-09-05
+  for two reasons. A parallel session was committing to both at the time — REE at 23:35, Curriculum
+  at 23:05 — and moving a working tree out from under a live session is how a repository gets hurt.
+  And neither has a remote: OneDrive is currently their only off-machine backup, and at that size
+  GitHub is not a drop-in replacement. Both have current bare mirrors under `C:\dev\mirrors\`, but
+  those are on the same disk, which is redundancy and not backup. **Moving them needs the other
+  session stopped and a backup decided first.** Verify any move by comparing `HEAD^{tree}`, never
+  checked-out files, because CRLF makes identical objects look different.

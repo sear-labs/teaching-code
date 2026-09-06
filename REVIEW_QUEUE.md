@@ -56,12 +56,17 @@ Not from the reviews; from reading what the public repository would contain. **D
   every commit found six. Redacted with `git filter-repo`, so every hash in this repository changed
   and the ones quoted in `README.md` were remapped.
 
+The repository was then created and pushed: **https://github.com/sear-labs/teaching-code**, public,
+2026-09-05. A fresh clone passes the checker on all seventeen notebooks and resolves `../../src`
+from a notebook folder, which is the path a reader on Colab takes.
+
 **Still open:**
 
 - `README.md` and `notebooks/12_energy_systems_pypsa/README.md` point at REE 4301 by its OneDrive
   path, because that repository has no remote. Replace with the URL once it is pushed.
 - Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
-- **The push itself.** No remote is configured; creating the repository is the owner's to do.
+- **Everything committed from now on is immediately public.** The nine findings below are public
+  defects until they are fixed.
 
 ---
 

@@ -44,13 +44,14 @@ Update the status lines in REVIEW_QUEUE.md as you close findings.
 ## What is already done, so nobody redoes it
 
 - The fifteen findings on `09`, `10` and `12` are fixed and those notebooks re-executed.
-- The library is prepared for its first public push: `REPO_URL` points at
-  `https://github.com/sear-labs/teaching-code`, the setup cell prints a repository-relative path so
-  no output carries an author's machine, the licence cell falls back to the size-limited licence pip
-  ships (so no key is needed anywhere except `07`, which says so itself), and the Gurobi licence
-  number has been removed from the output history.
-- **The push itself has not happened.** No remote is configured. Creating the repository and pushing
-  is the owner's to do.
+- **The library is public**, at `https://github.com/sear-labs/teaching-code`, pushed 2026-09-05.
+  `REPO_URL` points there, the setup cell prints a repository-relative path so no output carries an
+  author's machine, the licence cell falls back to the size-limited licence pip ships (so no key is
+  needed anywhere except `07`, which says so itself), and the Gurobi licence number was removed from
+  the output history before the push. A fresh clone was checked: the checker passes on all
+  seventeen, and `../../src` resolves from a notebook folder the way the setup cell expects.
+- Because it is public now, `git push` after committing, and remember that anything committed here
+  is immediately visible.
 
 ## Still open beyond the queue
 

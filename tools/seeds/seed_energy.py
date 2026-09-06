@@ -41,7 +41,7 @@ see the README in this folder for the environment and kernel. On Colab this cell
 code(r'''
 import os, subprocess, sys
 
-REPO_URL = None      # the public GitHub URL, once this library is published; Colab clones from it
+REPO_URL = "https://github.com/sear-labs/teaching-code"
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab
@@ -50,8 +50,6 @@ except ImportError:
     ON_COLAB = False
 
 if ON_COLAB:
-    if REPO_URL is None:
-        raise SystemExit("This library is not published yet: open the notebook from a clone of the repository.")
     if not os.path.isdir("/content/teaching-code"):
         subprocess.run(["git", "clone", "--quiet", REPO_URL, "/content/teaching-code"], check=True)
     os.chdir("/content/teaching-code/notebooks/12_energy_systems_pypsa")
@@ -67,17 +65,21 @@ try:
     import pypsa
 except ImportError:
     raise SystemExit("PyPSA is not installed in this kernel. See README.md in this folder for the orteach-energy environment.")
-print("package:", os.path.dirname(orteach.__file__), "  pypsa", pypsa.__version__)
+root = os.path.abspath(os.path.join("..", ".."))
+print("package:", os.path.relpath(os.path.dirname(orteach.__file__), root), "  pypsa", pypsa.__version__)
 ''')
 
 md(r"""
 ## Licence setup, and a quiet solver
 
-Three secrets named, none contained. Colab reads them from the key icon in the left sidebar; a
-machine with a licence file needs nothing. The environment starts silent, so the licence number
-never lands in an output cell. PyPSA and linopy log every step of building a model; that is turned
-down to errors, and pandas 3's deprecation warnings inside PyPSA are silenced, so the outputs below
-are the numbers and nothing else.
+Nothing here needs a key: `pip install gurobipy` ships a size-limited licence and the models below
+sit well inside it. A machine with its own licence file uses that instead, and on Colab three
+secrets read from the key icon in the left sidebar are used when they are there — three named here,
+none contained. The environment starts silent, so no licence number lands in an output cell.
+
+PyPSA and linopy log every step of building a model; that is turned down to errors, and pandas 3's
+deprecation warnings inside PyPSA are silenced, so the outputs below are the numbers and nothing
+else.
 """)
 code(r'''
 import logging, warnings
@@ -95,14 +97,13 @@ try:
         env.setParam("WLSACCESSID", userdata.get("GRB_WLSACCESSID"))
         env.setParam("WLSSECRET",   userdata.get("GRB_WLSSECRET"))
         env.setParam("LICENSEID",   int(userdata.get("GRB_LICENSEID")))
+        licence = "Colab Secrets (WLS)"
     except (userdata.SecretNotFoundError, userdata.NotebookAccessError):
-        raise SystemExit("Add GRB_WLSACCESSID, GRB_WLSSECRET and GRB_LICENSEID as Colab Secrets "
-                         "(key icon, left sidebar), grant this notebook access to them, then re-run this cell.")
-    env.start()
-    print("licence: Colab Secrets (WLS)")
+        licence = "the size-limited licence pip ships"     # no key needed; see the note above
 except ImportError:
-    env.start()
-    print("licence: local gurobi.lic")
+    licence = "local gurobi.lic"
+env.start()
+print("licence:", licence)
 
 logging.getLogger("pypsa").setLevel(logging.ERROR)
 logging.getLogger("linopy").setLevel(logging.ERROR)

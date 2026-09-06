@@ -39,7 +39,7 @@ until this cell makes one, and no `gurobipy` until it installs it. Nothing here 
 code(r'''
 import os, subprocess, sys
 
-REPO_URL = None      # the public GitHub URL, once this library is published; Colab clones from it
+REPO_URL = "https://github.com/sear-labs/teaching-code"
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab
@@ -48,8 +48,6 @@ except ImportError:
     ON_COLAB = False
 
 if ON_COLAB:
-    if REPO_URL is None:
-        raise SystemExit("This library is not published yet: open the notebook from a clone of the repository.")
     if not os.path.isdir("/content/teaching-code"):
         subprocess.run(["git", "clone", "--quiet", REPO_URL, "/content/teaching-code"], check=True)
     os.chdir("/content/teaching-code/notebooks/14_probability_and_stats")
@@ -61,7 +59,8 @@ try:
 except ImportError:
     raise SystemExit("orteach not found: run this notebook from its own folder inside the repository, "
                      "so that ../../src exists.")
-print("package:", os.path.dirname(orteach.__file__))
+root = os.path.abspath(os.path.join("..", ".."))
+print("package:", os.path.relpath(os.path.dirname(orteach.__file__), root))
 ''')
 
 md(r"""

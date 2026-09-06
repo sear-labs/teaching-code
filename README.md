@@ -111,8 +111,8 @@ with its payoffs missing for four, a least-squares fit that could only over-pred
 duals in ten folders, a ranging bound wrong by half. Read `git log` before assuming a course copy
 is right.
 
-The lithium supply-chain material (`sear-labs/advopt-lithiumsc`) and the rest of REE 4301 (a git
-repository on OneDrive) are pointed at from `06`, `10`, `12` and `13`, not copied.
+The lithium supply-chain material (`sear-labs/advopt-lithiumsc`, public) and the rest of REE 4301 (a
+git repository on OneDrive, not yet pushed) are pointed at from `06`, `10`, `12` and `13`, not copied.
 
 ## Checking the work
 
@@ -146,12 +146,16 @@ first push.
 
 ## Before this goes public
 
-- **Rotate the Gurobi WLS key first.** It is still live in shared Drive copies.
-- The licence expires **2026-12-04**, mid-semester.
-- **Set `REPO_URL`** in every notebook's setup cell to the published address (one `sed`); until then
-  the Colab path fails with a sentence saying the library is not published.
-- **The licence number is in the history** of commits `5cbe945`, `bfe8228`, `8acc3d4` and `e99d8da`
-  (an output line, scrubbed forward in `9b9cb10`). No remote exists yet, so those can be rewritten
-  before the first push if wanted.
+- **Rotate the Gurobi WLS key.** It is still live in shared Drive copies. Nothing in this repository
+  needs it: no notebook contains a key, and the setup cell falls back to the size-limited licence
+  `pip install gurobipy` ships when no Colab Secret is set.
+- **`07` is the one notebook that needs a licence of its own.** Its scenario models reach 3,002
+  variables against the free licence's documented two thousand. Every other notebook is under five
+  hundred. `07` says this in its own licence cell.
+- The academic licence on the authoring machine expires **2026-12-04**, mid-semester. That is a
+  problem for re-executing notebooks here, not for a reader on Colab.
 - Exclude other people's material: `Krejci IE 3315 Lecture Notes` and `CorleyFiles` are not yours to
   publish. Solution keys are already excluded; the exam-score vectors in `14` are synthetic.
+- **`REE 4301` is pointed at by path**, from this file and from `notebooks/12_energy_systems_pypsa/`,
+  because it is a git repository on OneDrive with no remote. Push it and those two pointers become
+  URLs. The lithium material is already public at `sear-labs/advopt-lithiumsc`.

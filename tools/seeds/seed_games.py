@@ -40,7 +40,7 @@ until this cell makes one, and no `gurobipy` until it installs it. Nothing here 
 code(r'''
 import os, subprocess, sys
 
-REPO_URL = None      # the public GitHub URL, once this library is published; Colab clones from it
+REPO_URL = "https://github.com/sear-labs/teaching-code"
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab
@@ -49,8 +49,6 @@ except ImportError:
     ON_COLAB = False
 
 if ON_COLAB:
-    if REPO_URL is None:
-        raise SystemExit("This library is not published yet: open the notebook from a clone of the repository.")
     if not os.path.isdir("/content/teaching-code"):
         subprocess.run(["git", "clone", "--quiet", REPO_URL, "/content/teaching-code"], check=True)
     os.chdir("/content/teaching-code/notebooks/10_game_theory")
@@ -62,15 +60,17 @@ try:
 except ImportError:
     raise SystemExit("orteach not found: run this notebook from its own folder inside the repository, "
                      "so that ../../src exists.")
-print("package:", os.path.dirname(orteach.__file__))
+root = os.path.abspath(os.path.join("..", ".."))
+print("package:", os.path.relpath(os.path.dirname(orteach.__file__), root))
 ''')
 
 md(r"""
 ## Licence setup
 
-Three secrets named, none contained. Colab reads them from the key icon in the left sidebar; a
-machine with a licence file needs nothing. The environment starts silent, so the licence number
-never lands in an output cell.
+Nothing here needs a key: `pip install gurobipy` ships a size-limited licence and the models below
+sit well inside it. A machine with its own licence file uses that instead, and on Colab three
+secrets read from the key icon in the left sidebar are used when they are there — three named here,
+none contained. The environment starts silent, so no licence number lands in an output cell.
 """)
 code(r'''
 import gurobipy as gp
@@ -84,14 +84,13 @@ try:
         env.setParam("WLSACCESSID", userdata.get("GRB_WLSACCESSID"))
         env.setParam("WLSSECRET",   userdata.get("GRB_WLSSECRET"))
         env.setParam("LICENSEID",   int(userdata.get("GRB_LICENSEID")))
+        licence = "Colab Secrets (WLS)"
     except (userdata.SecretNotFoundError, userdata.NotebookAccessError):
-        raise SystemExit("Add GRB_WLSACCESSID, GRB_WLSSECRET and GRB_LICENSEID as Colab Secrets "
-                         "(key icon, left sidebar), grant this notebook access to them, then re-run this cell.")
-    env.start()
-    print("licence: Colab Secrets (WLS)")
+        licence = "the size-limited licence pip ships"     # no key needed; see the note above
 except ImportError:
-    env.start()
-    print("licence: local gurobi.lic")
+    licence = "local gurobi.lic"
+env.start()
+print("licence:", licence)
 ''')
 
 md(r"""

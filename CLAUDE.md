@@ -46,12 +46,20 @@ correctly and a fifteenth would too. Keep the padding when adding one.
 ## Status, measured 2026-09-05
 
 Seventeen notebooks across twelve subjects (`02` empty on purpose), sixteen package modules, thirty-
-odd tables in `data/raw/`, 168 tests, and `tools/check_notebooks.py`. README.md has the table.
+odd tables in `data/raw/`, 170 tests, and `tools/check_notebooks.py`. README.md has the table.
 
-**What to run before believing anything:** `python -m pytest tests/ -q` and
-`python tools/check_notebooks.py`. Both must be clean before a commit; the checker exists because
-three reviews found problems the tests could not — a number in the prose no output produced, a
-tied solution compared entry by entry, an objective printed in the wrong units.
+**What to run before believing anything:** `python -m pytest tests/ -q`,
+`python tools/check_notebooks.py` and `python tools/check_seeds.py`. All three must be clean before
+a commit; the checker exists because three reviews found problems the tests could not — a number in
+the prose no output produced, a tied solution compared entry by entry, an objective printed in the
+wrong units.
+
+**Eleven notebooks are generated from `tools/seeds/`, and that is where to edit them.** Change the
+seed, run it, re-execute the notebook. The other six (`04` both, `05`, `07`, `08`, `11`) were last
+edited in place and the notebook is their source; `check_seeds.py` knows which is which.
+
+**`REVIEW_QUEUE.md` is the open work.** It holds the two most recent fresh-context reviews verbatim
+with a status line per finding, and the list of what must change before the first push.
 
 **Conventions this library settled, beyond the standard:**
 

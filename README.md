@@ -119,6 +119,7 @@ repository on OneDrive) are pointed at from `06`, `10`, `12` and `13`, not copie
 ```bash
 python -m pytest tests/ -q                    # domain invariants, regression pins, R and textbook values
 python tools/check_notebooks.py               # Part 10, the machine-checkable half, every notebook
+python tools/check_seeds.py                   # every seed still reproduces its committed notebook
 ```
 
 The checker refuses: an unexecuted notebook or an error output, an orphan code cell, a function or
@@ -127,9 +128,19 @@ agreement assertion, a tolerance literal used as a threshold, a seed set but not
 long to read without scrolling, a number in the prose that no output produced, a licence banner in
 an output, and a notebook without the Colab setup cell.
 
+Eleven of the notebooks are written by a script in `tools/seeds/`, which is where to edit them: change
+the seed, run it, then execute the notebook in place so it ships with outputs. `tools/check_seeds.py`
+fails if any seed has fallen behind its notebook, because running a stale one would silently undo
+whatever was fixed since.
+
 To re-execute a notebook: `jupyter nbconvert --to notebook --execute --inplace <path>` (for `12`, add
-`--ExecutePreprocessor.kernel_name=orteach-energy`). Three fresh-context reviews of the first nine
-notebooks are folded into commit `80f5761`.
+`--ExecutePreprocessor.kernel_name=orteach-energy`).
+
+Every notebook has been read by a fresh-context reviewer against Parts 3, 4 and 10. The first nine
+reviews are folded into commit `80f5761`, the probability pair into `50e714f`, and `09`/`10`/`12`
+into `7f68b87`. **`REVIEW_QUEUE.md` holds the two most recent reviews verbatim with a status line per
+finding; the nine on `06` and `13` are still open.** It also lists what has to change before the
+first push.
 
 ---
 

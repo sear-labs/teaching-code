@@ -145,7 +145,8 @@ pure. The gap between them is the room that mixing fills.
 
 Let $p_1, p_2$ be the probabilities on the two rows and $v$ the payoff the mix guarantees. Against
 each column, the expected payment must be at least $v$; the probabilities sum to one; maximise $v$.
-One constraint per column, written out so the payoff coefficients are visible.
+One constraint per column, written out, each reading its two coefficients from the table — so an
+edit to the table reaches the model — and then printed, so you can see what was built.
 """)
 code(r'''
 m = gp.Model("row player", env=env)
@@ -154,12 +155,13 @@ tolerance.apply(m)
 p = m.addVars(game.rows, lb=0.0, name="p")
 v = m.addVar(lb=-GRB.INFINITY, name="value")
 
+a = game.payoff                    # (row, col) -> what the column player pays the row player
 prob = m.addConstr(p["r1"] + p["r2"] == 1, name="probability")
 against = {}
-against["c1"] = m.addConstr(2 * p["r1"] + 4 * p["r2"] >= v, name="against[c1]")
-against["c2"] = m.addConstr(2 * p["r1"] + 3 * p["r2"] >= v, name="against[c2]")
-against["c3"] = m.addConstr(3 * p["r1"] + 2 * p["r2"] >= v, name="against[c3]")
-against["c4"] = m.addConstr(-1 * p["r1"] + 6 * p["r2"] >= v, name="against[c4]")
+against["c1"] = m.addConstr(a["r1", "c1"] * p["r1"] + a["r2", "c1"] * p["r2"] >= v, name="against[c1]")
+against["c2"] = m.addConstr(a["r1", "c2"] * p["r1"] + a["r2", "c2"] * p["r2"] >= v, name="against[c2]")
+against["c3"] = m.addConstr(a["r1", "c3"] * p["r1"] + a["r2", "c3"] * p["r2"] >= v, name="against[c3]")
+against["c4"] = m.addConstr(a["r1", "c4"] * p["r1"] + a["r2", "c4"] * p["r2"] >= v, name="against[c4]")
 m.setObjective(v, GRB.MAXIMIZE)
 m.update()
 
@@ -168,10 +170,10 @@ for c in m.getConstrs():
 ''')
 
 md(r"""
-That printed table is the check the undergraduate version of this notebook needed. Four term folders
-built these rows with a `prod` call whose index pattern matched nothing, and their table read
-`-1.0 value >= 0` on every line — the payoffs had silently dropped out. The game they solved had
-value 0. Look at the coefficients before you solve.
+That printed table is the check to make before solving. These rows are easy to build with a `prod`
+call whose index pattern matches nothing; the table then reads `-1.0 value >= 0` on every line, the
+payoffs having silently dropped out, and the game solved has value 0. Look at the coefficients
+before you solve.
 
 Predict: where between 2 and 3 will $v$ land, and what will $p$ be?
 """)
@@ -186,9 +188,9 @@ print("row strategy", {r: round(x, 4) for r, x in p_hand.items()})
 md(r"""
 ## Which columns bind, and what the duals say
 
-Print the slack and the dual of every column constraint. Two things to notice: more columns are
-tight than the two the mix seems to be balancing between, and the duals are negative numbers that
-sum to minus one.
+Print the slack and the dual of every column constraint. Gurobi reports a row's slack as right-hand
+side minus activity, so a loose `>=` row shows a negative number. How many columns are tight? What
+sign do the duals have, and what do they sum to?
 """)
 code(r'''
 print(f"{'column':8} {'expected payoff':>16} {'slack':>7} {'dual':>7}")
@@ -265,10 +267,12 @@ print("pure maximin / minimax:", games.maximin(game), games.minimax(game))
 md(r"""
 ## The agreement assertion
 
-Both values and the row strategy, hand-built against the package; the row LP's duals against the
-package's; and every column strategy in play scored by `worst_case`, which must come out at the
-value. The column strategies are compared as guarantees, not as vectors, because the optimum on that
-side is a segment.
+Both values and the row strategy, hand-built against the package; two things every optimal set of
+row-LP duals shares — they sum to minus one, and the probability row's dual is the value of the
+game; and every column strategy in play scored by `worst_case`, which must come out at the value.
+The column strategies, and the duals that encode one, are compared as guarantees and invariants,
+not as vectors: the optimum on that side is a segment, and which point of it comes back is the
+solver's choice, not the problem's.
 """)
 code(r'''
 checks = [("row value", value_row, pkg_row.value),
@@ -276,8 +280,8 @@ checks = [("row value", value_row, pkg_row.value),
           ("minimax theorem", value_row, value_col)]
 for r in game.rows:
     checks.append((f"p[{r}]", p_hand[r], pkg_row.probs[r]))
-for c in game.cols:
-    checks.append((f"row dual {c}", against[c].Pi, pkg_row.duals[c]))
+checks.append(("row duals sum to -1", sum(against[c].Pi for c in game.cols), sum(pkg_row.duals.values())))
+checks.append(("probability-row dual is the value", prob.Pi, pkg_row.value))
 for label, strat in (("hand q", q_hand), ("hand duals", {c: -against[c].Pi for c in game.cols}), ("package q", pkg_col.probs)):
     checks.append((f"{label} guarantee", games.worst_case(game, strat, "column"), value_row))
 
@@ -297,8 +301,8 @@ md(r"""
 
 - Column `c1` is dominated: every entry is at least as large as `c2`'s. Delete it from the table and
   re-run. Does anything change, and should it have?
-- Change `payoff["r1", "c4"]` to 4. Now compute the pure maximin and minimax before solving. What
-  happened, and what does the LP return for $p$?
+- Change `payoff["r2", "c3"]` to 3. Now compute the pure maximin and minimax before solving. Is
+  there a saddle point, and what does the LP return for $p$?
 - The row LP has a free variable $v$ and `>=` rows in a maximisation. Write its dual by the rules
   in `03_duality_and_sensitivity/` and show it is the column LP.
 """)

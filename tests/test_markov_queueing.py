@@ -57,14 +57,14 @@ def test_powers_converge_to_the_steady_state(zones):
 def test_the_taxi_steady_state_by_hand(zones):
     """7/18, 1/3, 5/18 - solved on paper from pi P = pi, sum pi = 1."""
     pi = markov.steady_state(zones)
-    assert np.allclose(pi, [7 / 18, 1 / 3, 5 / 18], atol=1e-12)
+    assert np.allclose(pi, [7 / 18, 1 / 3, 5 / 18], atol=LINALG_ATOL)
 
 
 def test_two_state_three_step_check():
     """The R notebook's hand check: from state 1, after three steps of
     [[1/2, 1/2], [1/3, 2/3]], the chain is in state 1 with probability 29/72."""
     ch = markov.Chain(["1", "2"], [[0.5, 0.5], [1 / 3, 2 / 3]])
-    assert abs(markov.distribution_after(ch, "1", 3)[0] - 29 / 72) < 1e-12
+    assert abs(markov.distribution_after(ch, "1", 3)[0] - 29 / 72) < LINALG_ATOL
 
 
 def test_absorption_matches_brute_force(absorbing):
@@ -123,6 +123,23 @@ def test_unstable_queue_is_refused():
 
 def test_state_probabilities_sum_to_one():
     assert abs(sum(queueing.p_n(2.0, 3.0, n) for n in range(400)) - 1.0) < LINALG_ATOL
+
+
+def test_the_draw_order_is_the_contract_the_notebook_relies_on():
+    """The notebook draws every interarrival time, then every service time,
+    from one generator seeded once, and runs Lindley's recursion; its
+    agreement check asserts equality to the last bit. So the package must
+    draw in exactly that order, and a test that compares the package with
+    itself would not notice if it stopped."""
+    lam, mu, n, seed = 2.0, 3.0, 5_000, 20260905
+    rng = np.random.default_rng(seed)
+    interarrival = rng.exponential(1 / lam, n)
+    service = rng.exponential(1 / mu, n)
+    wait = np.zeros(n)
+    for k in range(1, n):
+        wait[k] = max(0.0, wait[k - 1] + service[k - 1] - interarrival[k])
+    sim = queueing.simulate_mm1(lam, mu, n, seed)
+    assert sim.Wq == wait.mean() and sim.W == (wait + service).mean()
 
 
 def test_simulation_is_reproducible_and_near_the_formula():

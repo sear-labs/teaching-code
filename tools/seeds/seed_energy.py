@@ -174,7 +174,7 @@ code(r'''
 n = pypsa.Network()
 n.set_snapshots([0])
 n.add("Bus", "node")
-print(n.buses)
+print("buses:", list(n.buses.index), "  snapshots:", list(n.snapshots))
 ''')
 
 md(r"""
@@ -267,9 +267,11 @@ print("\ndemand_mw[19] =", day["demand_mw"][19], "  solar_pu[12] =", day["solar_
 
 md(r"""
 Look at the two profiles together before building anything. Solar peaks at midday; demand peaks at
-19, when solar is gone. 140 MW of solar against a 110 MW peak means more solar than demand at noon
-and none in the evening — that mismatch is the whole reason a battery exists here. The cheap thermal
-unit is too small to cover the evening on its own, so the expensive one has to start.
+19, when solar is gone. There is 140 MW of solar against a 110 MW peak.
+
+Do the arithmetic before you build anything: gas is 66 MW and the battery 40 MW, against an evening
+peak of 110 MW. Can the peaker stay off? And what has to happen earlier in the day for that answer
+to hold?
 
 The battery's four numbers are knobs. `max_hours=4` means its energy store is four times its power;
 the one-way efficiency squared is the round trip; the standing loss is the fraction that leaks away
@@ -282,15 +284,18 @@ EFFICIENCY    = 0.927        # one way; round trip 0.927^2 = 0.859
 STANDING_LOSS = 0.01         # per hour
 CYCLE_COST    = 0.01         # $/MWh, a token cost per MWh cycled
 
+T = {t.name: t for t in techs}      # the loaded table, by name
+
 n2 = pypsa.Network()
 n2.set_snapshots(day["hour"])
 n2.add("Bus", "node")
 n2.add("Load", "demand", bus="node", p_set=np.array(day["demand_mw"]))
-for t in techs:
-    if t.varies:
-        n2.add("Generator", t.name, bus="node", p_nom=t.p_nom, marginal_cost=t.marginal_cost, p_max_pu=np.array(day["solar_pu"]))
-    else:
-        n2.add("Generator", t.name, bus="node", p_nom=t.p_nom, marginal_cost=t.marginal_cost)
+# three generators with three different stories, so they are written out rather than looped: solar
+# follows the sun, gas is the cheap thermal unit, the peaker is the expensive one
+n2.add("Generator", "solar", bus="node", p_nom=T["solar"].p_nom,
+       marginal_cost=T["solar"].marginal_cost, p_max_pu=np.array(day["solar_pu"]))
+n2.add("Generator", "gas", bus="node", p_nom=T["gas"].p_nom, marginal_cost=T["gas"].marginal_cost)
+n2.add("Generator", "peaker", bus="node", p_nom=T["peaker"].p_nom, marginal_cost=T["peaker"].marginal_cost)
 n2.add("StorageUnit", "battery", bus="node", p_nom=BATTERY_MW, max_hours=BATTERY_HOURS,
        efficiency_store=EFFICIENCY, efficiency_dispatch=EFFICIENCY, standing_loss=STANDING_LOSS,
        cyclic_state_of_charge=True, marginal_cost=CYCLE_COST)
@@ -308,8 +313,10 @@ for name in lp2.constraints:
 ''')
 
 md(r"""
-`StorageUnit-energy_balance` is the one you could not have solved on paper — twenty-four rows,
-each $E(t) = E(t-1) + \eta_c P_{charge}(t) - P_{discharge}(t)/\eta_d$, minus the standing loss.
+`StorageUnit-energy_balance` is the one you could not have solved on paper — twenty-four rows, each
+$E(t) = (1-\ell)\,E(t-1) + \eta_c P_{charge}(t) - P_{discharge}(t)/\eta_d$. The standing loss $\ell$
+*multiplies* the energy carried over, so it charges rent on energy for sitting still rather than a
+toll for moving.
 
 Predict before running: in which hours will the battery charge, in which will it discharge, and in
 how many hours will the expensive unit run at all?
@@ -317,6 +324,7 @@ how many hours will the expensive unit run at all?
 code(r'''
 n2.optimize(**SOLVE)
 day_cost = float(n2.objective)
+prices_hand = [float(v) for v in n2.buses_t.marginal_price["node"]]      # unrounded, for the check below
 print(f"day cost: ${day_cost:,.2f}\n")
 table = pd.DataFrame({"demand": n2.loads_t.p["demand"], "solar": n2.generators_t.p["solar"],
                       "gas": n2.generators_t.p["gas"], "peaker": n2.generators_t.p["peaker"],
@@ -329,8 +337,9 @@ print(table.to_string())
 md(r"""
 Read the table before moving on. The battery column is negative when it charges. Find the hours it
 charges in and what the price is then; the hours it discharges into; and the one hour the peaker
-runs. Then look at the evening prices from hour 20 on: they are above gas's $22.14, and nothing in
-this system costs that much to run. What is setting the price in those hours?
+runs. Then look at the price in hour 18, and in hours 20 to 22: each is above gas's $22.14, and the
+only thing in this system that costs more than gas to run is the peaker, which is off in all four.
+What is setting the price there?
 """)
 code(r'''
 charging = [int(h) for h in day["hour"] if table.battery[h] < -tolerance.FEASIBILITY_ATOL]
@@ -342,25 +351,59 @@ print("peaker runs in   :", peaker_on)
 ''')
 
 md(r"""
-## The tie the standing loss breaks
+## Which hours it charges in is not the model's answer
 
-Set the standing loss to zero and re-solve. Solar is free in every hour from 9 to 16, so charging at
-9 costs exactly what charging at 15 costs, and many schedules tie. Predict: does the cost change,
-and does the schedule?
+Solar is curtailed in every hour from 9 to 16 — more is available than the system can absorb — so a
+MWh put into the battery in any of those hours costs nothing, and swapping one charging hour for
+another leaves the total unchanged. Where an exchange is free, the model has not decided anything,
+and what comes back is the *algorithm's* answer rather than the problem's.
+
+That is testable. Simplex walks corners and barrier walks the interior, so ask for barrier and
+compare. Predict first: which of the numbers printed above do you expect to move?
+""")
+code(r'''
+BARRIER = dict(SOLVE, solver_options=dict(SOLVE["solver_options"], Method=2))
+n2.optimize(**BARRIER)
+bat2 = n2.storage_units_t.p["battery"]
+print(f"barrier:  day cost ${float(n2.objective):,.2f}")
+print("  charging   ", [int(h) for h in day["hour"] if bat2[h] < -tolerance.FEASIBILITY_ATOL])
+print("  discharging", [int(h) for h in day["hour"] if bat2[h] > tolerance.FEASIBILITY_ATOL])
+print(f"  energy returned {float(bat2[bat2 > 0].sum()):.3f} MWh    "
+      f"price at 19 ${float(n2.buses_t.marginal_price['node'][19]):.2f}/MWh")
+n2.optimize(**SOLVE)                     # back to the default the rest of the notebook uses
+''')
+
+md(r"""
+The same cost to the cent, from a different set of charging hours. So those hours are not a property
+of this system. What every optimum does agree on is what the model actually determined: the cost, how
+much energy the battery gives back and when, the hour the peaker runs, and all twenty-four prices.
+Those are what the agreement check at the bottom compares — and the charging hours are checked only
+for the property they must have, which is that the model never pays for the energy it stores.
+
+It is tempting to reach for the standing loss as the thing that ought to settle it: energy that leaks
+should punish charging early. Predict what happens to the cost and to the schedule, then set it to
+zero and re-solve.
 """)
 code(r'''
 n2.storage_units.loc["battery", "standing_loss"] = 0.0
 n2.optimize(**SOLVE)
-print(f"without standing loss: day cost ${float(n2.objective):,.2f}   "
-      f"charging hours {[int(h) for h in day['hour'] if n2.storage_units_t.p['battery'][h] < -tolerance.FEASIBILITY_ATOL]}")
+bat0 = n2.storage_units_t.p["battery"]
+print(f"no standing loss: day cost ${float(n2.objective):,.2f}   "
+      f"energy returned {float(bat0[bat0 > 0].sum()):.3f} MWh")
+print("  charging   ", [int(h) for h in day["hour"] if bat0[h] < -tolerance.FEASIBILITY_ATOL])
+print("  discharging", [int(h) for h in day["hour"] if bat0[h] > tolerance.FEASIBILITY_ATOL])
 n2.storage_units.loc["battery", "standing_loss"] = STANDING_LOSS
 n2.optimize(**SOLVE)
-print(f"restored:              day cost ${float(n2.objective):,.2f}")
+print(f"restored:         day cost ${float(n2.objective):,.2f}")
 ''')
 
 md(r"""
-When a result changes and the objective does not, that is a tie, not a bug. Which real cost, left
-out, would break it — and is the standing loss one?
+The cost moved, so the standing loss is not a tie-breaker at all — it is a real cost, and a sizeable
+one. The tie survived it: with the leak gone, energy sits in the battery for free, and now even the
+*discharging* hours move between algorithms.
+
+Breaking a tie takes a cost that depends on when energy is held rather than on whether it moves.
+Which cost in a real battery behaves that way, and what would adding it do to the schedule above?
 
 ---
 
@@ -369,8 +412,12 @@ out, would break it — and is the standing loss one?
 Everything so far took the fleet as given. Capacity expansion asks what to *build*. In PyPSA the
 change is one argument: `p_nom_extendable=True`, with a `capital_cost` for each MW built. The
 table's capital costs are per MW per year; the snapshots are one representative day, so each is
-divided by 365 to put a day of capital beside a day of fuel. Get that division wrong and the model
-builds almost nothing and burns fuel forever.
+divided by the days in a year to put a day of capital beside a day of fuel. Get that division wrong
+and the model builds almost nothing and burns fuel forever. It is a knob, so it is named here and
+passed to the package below rather than typed twice.
+
+The build ceiling is the table's business: solar has one, the two thermal units carry a zero, which
+this model reads as "no ceiling".
 """)
 code(r'''
 DAYS_PER_YEAR = 365.0
@@ -380,7 +427,11 @@ n3.set_snapshots(day["hour"])
 n3.add("Bus", "node")
 n3.add("Load", "demand", bus="node", p_set=np.array(day["demand_mw"]))
 for t in techs:
-    extra = {"p_max_pu": np.array(day["solar_pu"]), "p_nom_max": t.p_nom_max} if t.varies else {}
+    extra = {}
+    if t.varies:                       # only solar follows a profile
+        extra["p_max_pu"] = np.array(day["solar_pu"])
+    if t.p_nom_max > 0:                # a zero in the table's build-ceiling column means "no ceiling"
+        extra["p_nom_max"] = t.p_nom_max
     n3.add("Generator", t.name, bus="node", p_nom_extendable=True, marginal_cost=t.marginal_cost,
            capital_cost=t.capital_cost / DAYS_PER_YEAR, **extra)
 n3.add("StorageUnit", "battery", bus="node", p_nom=BATTERY_MW, max_hours=BATTERY_HOURS,
@@ -439,7 +490,11 @@ for capex in CAPEX_SWEEP:
     k.add("Bus", "node")
     k.add("Load", "demand", bus="node", p_set=np.array(day["demand_mw"]))
     for t in techs:
-        extra = {"p_max_pu": np.array(day["solar_pu"]), "p_nom_max": t.p_nom_max} if t.varies else {}
+        extra = {}
+        if t.varies:
+            extra["p_max_pu"] = np.array(day["solar_pu"])
+        if t.p_nom_max > 0:
+            extra["p_nom_max"] = t.p_nom_max
         k.add("Generator", t.name, bus="node", p_nom_extendable=True, marginal_cost=t.marginal_cost,
               capital_cost=(capex if t.varies else t.capital_cost) / DAYS_PER_YEAR, **extra)
     k.add("StorageUnit", "battery", bus="node", p_nom=BATTERY_MW, max_hours=BATTERY_HOURS,
@@ -475,24 +530,29 @@ pkg_lp = energy.dispatch_lp(techs_hour, DEMAND, env=env)
 pkg_hour = energy.one_hour_network(techs_hour, DEMAND)
 pkg_hour.optimize(**SOLVE)
 pkg_day = energy.solve_day(energy.day_network(day, techs, battery), env)
-pkg_build = energy.solve_day(energy.day_network(day, techs, battery, expand=True), env)
-pkg_sweep = {capex: energy.solar_built(day, techs, battery, capex, env) for capex in CAPEX_SWEEP}
+pkg_build = energy.solve_day(energy.day_network(day, techs, battery, expand=True, days_per_year=DAYS_PER_YEAR), env)
+pkg_sweep = {capex: energy.solar_built(day, techs, battery, capex, env, days_per_year=DAYS_PER_YEAR)
+             for capex in CAPEX_SWEEP}
 
 print(f"one hour: LP ${pkg_lp.objective:,.2f} at ${pkg_lp.price:.2f}/MWh   PyPSA ${float(pkg_hour.objective):,.2f}")
 print(f"day: ${pkg_day.objective:,.2f}   charging {pkg_day.charging_hours}   peaker {pkg_day.peaker_hours}")
 built_pkg = {k: round(v, 1) for k, v in pkg_build.built.items()}
 print(f"build at the table's prices: {built_pkg}")
 print("solar built by capex:", {c: round(v, 1) for c, v in pkg_sweep.items()})
-print(f"envelope break-even ${energy.envelope_breakeven(day, GAS_COST):,.0f}/MW/yr")
+print(f"envelope break-even ${energy.envelope_breakeven(day, GAS_COST, DAYS_PER_YEAR):,.0f}/MW/yr")
 ''')
 
 md(r"""
 ## The agreement assertion
 
-Four ways of getting the hour's cost and price, the day's cost and schedule, the build decision and
-the whole sweep — hand-built against the package. Every solve on both sides went through Gurobi at
-the package's tightened tolerances, so agreement to `AGREEMENT_RTOL` is a claim the computation
-supports. The schedules are compared as hour lists, which must be identical.
+Four ways of getting the hour's cost and price, the day's cost and prices, the build decision and the
+whole sweep — hand-built against the package. Every solve on both sides went through Gurobi at the
+package's tightened tolerances, so agreement to `AGREEMENT_RTOL` is a claim the computation supports.
+
+The schedule is compared for what every optimum shares and no more. Discharging hours and the peaker
+hour are the model's answer, so they must match exactly. The charging hours are not, so the check
+asks only that the package never pays for the energy it stores — the property that makes the whole
+set of optima equivalent.
 """)
 code(r'''
 checks = [("hour cost, gurobipy", lp_cost, pkg_lp.objective),
@@ -501,16 +561,20 @@ checks = [("hour cost, gurobipy", lp_cost, pkg_lp.objective),
           ("hour price, PyPSA", pypsa_price, float(pkg_hour.buses_t.marginal_price.iloc[0, 0])),
           ("hour: gurobipy vs PyPSA", lp_cost, pypsa_cost),
           ("day cost", day_cost, pkg_day.objective),
-          ("envelope break-even", breakeven_hand, energy.envelope_breakeven(day, GAS_COST))]
+          ("envelope break-even", breakeven_hand, energy.envelope_breakeven(day, GAS_COST, DAYS_PER_YEAR))]
 for g in built:
     checks.append((f"built {g}", built[g], pkg_build.built[g]))
 for capex in CAPEX_SWEEP:
     checks.append((f"solar at {capex:,}", solar_hand[capex], pkg_sweep[capex]))
-assert charging == pkg_day.charging_hours and discharging == pkg_day.discharging_hours, "battery schedule differs"
+for h in day["hour"]:
+    checks.append((f"price at hour {h}", prices_hand[h], pkg_day.prices[h]))
+assert discharging == pkg_day.discharging_hours, "discharging hours differ"
 assert peaker_on == pkg_day.peaker_hours, "peaker hours differ"
+assert all(pkg_day.prices[h] < tolerance.FEASIBILITY_ATOL for h in pkg_day.charging_hours), \
+    "the package charged the battery in an hour that was not free"
 
 worst = max(rel_diff(h, k) for _, h, k in checks)
-print(f"{len(checks)} comparisons, plus the schedules")
+print(f"{len(checks)} comparisons, plus the schedule invariants")
 for name, hand, packaged in checks[:5]:
     print(f"  {name:24} hand {hand:12.4f}   package {packaged:12.4f}   rel {rel_diff(hand, packaged):.2e}")
 print("  ...")

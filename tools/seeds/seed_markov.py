@@ -87,7 +87,7 @@ print(f"{'from / to':10}" + "".join(f"{s:>8}" for s in zones.states))
 for i, s in enumerate(zones.states):
     print(f"{s:10}" + "".join(f"{P[i, j]:8.2f}" for j in range(len(zones.states))))
 print()
-print("P[North -> West] =", P[zones.index("North"), zones.index("West")], "   row sums:", P.sum(axis=1))
+print("P[North -> West] =", float(P[zones.index("North"), zones.index("West")]), "   row sums:", P.sum(axis=1))
 
 # to try a different chain, edit the loaded matrix; the change reaches the package check at the bottom:
 # zones.P[0] = [0.5, 0.3, 0.2]
@@ -134,7 +134,7 @@ A[-1, :] = 1.0               # ... with the last balance equation replaced by su
 b = np.zeros(n); b[-1] = 1.0
 
 pi_hand = np.linalg.solve(A, b)
-print("steady state:", {s: round(x, 6) for s, x in zip(zones.states, pi_hand)})
+print("steady state:", {s: round(float(x), 6) for s, x in zip(zones.states, pi_hand)})
 print("as fractions of 18:", np.round(pi_hand * 18, 6))
 print("check pi P - pi =", np.round(pi_hand @ P - pi_hand, 12))
 ''')
@@ -189,15 +189,15 @@ Q = Q_full[np.ix_(ti, ti)]
 R = Q_full[np.ix_(ti, ai)]
 
 N = np.linalg.inv(np.eye(len(ti)) - Q)
-steps_hand = {s: N[k].sum() for k, s in enumerate(transient)}
+steps_hand = {s: float(N[k].sum()) for k, s in enumerate(transient)}
 land = N @ R
 print("expected steps to absorption:", {s: round(x, 4) for s, x in steps_hand.items()})
 print("probability of absorption in", absorbing, "from each start:", np.round(land.ravel(), 6))
 ''')
 
 md(r"""
-The chain starting in A takes longer than one starting in D even though A cannot reach C directly
-and D can. Trace the paths and say why.
+D is the fastest start, and half of the time D's first step is to A, the slowest. Trace the paths
+and say how that can be.
 
 ---
 
@@ -207,8 +207,8 @@ Customers arrive as a Poisson process at rate $\lambda$ and one server works at 
 exponential. Two knobs. The course's example: $\lambda = 2$ per hour, $\mu = 3$ per hour.
 
 Utilisation $\rho = \lambda/\mu$ is the fraction of time the server is busy, and every other measure
-is a one-liner in $\rho$. Predict $L$, the average number in the system, before running: is it
-closer to 1 or to 3?
+is a one-liner in $\rho$. Predict $L$, the average number in the system, before running: below 1,
+between 1 and 2, or above 2?
 """)
 code(r'''
 LAM = 2.0     # arrivals per hour
@@ -318,7 +318,7 @@ pkg_mm2 = queueing.mmc(LAM, MU, C)
 pkg_sim = queueing.simulate_mm1(LAM, MU, N_CUSTOMERS, SEED)
 
 print("steady state       ", np.round(pkg_pi, 6))
-print("absorption steps   ", {s: round(x, 4) for s, x in pkg_ab.expected_steps.items()})
+print("absorption steps   ", {s: round(float(x), 4) for s, x in pkg_ab.expected_steps.items()})
 print(f"M/M/1 L {pkg_mm1.L:.4f}  Wq {pkg_mm1.Wq:.4f}    M/M/2 L {pkg_mm2.L:.4f}  Wq {pkg_mm2.Wq:.4f}")
 print(f"simulation (seed {pkg_sim.seed}) Wq {pkg_sim.Wq:.4f}  W {pkg_sim.W:.4f}")
 ''')
@@ -327,8 +327,9 @@ md(r"""
 ## The agreement assertion
 
 Every hand-built number against the package: the steady state, the three-step distribution, the
-absorption times, all six M/M/1 and M/M/2 measures, and the simulated waits — which must match
-exactly, because the seed and the draw order are the same on both sides.
+absorption times, all six M/M/1 and M/M/2 measures, and the simulated waits — which are asserted
+equal to the last bit, not merely close, because the seed and the draw order are the same on both
+sides.
 """)
 code(r'''
 checks = [("two-state after 3 steps", after3[0], pkg_after3[0]),
@@ -341,6 +342,7 @@ for k, s in enumerate(zones.states):
     checks.append((f"steady state {s}", pi_hand[k], pkg_pi[k]))
 for s in transient:
     checks.append((f"steps from {s}", steps_hand[s], pkg_ab.expected_steps[s]))
+assert Wq_sim == pkg_sim.Wq and W_sim == pkg_sim.W, "the simulation's draw order differs from the package's"
 
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} comparisons")

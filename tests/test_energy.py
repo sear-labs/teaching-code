@@ -98,12 +98,30 @@ def test_the_day_with_a_battery(profiles, techs, env):
     r = energy.solve_day(energy.day_network(profiles, techs, energy.Battery()), env)
     # 18,132.63 from the table (profiles rounded to four decimals); Module 0's own formula gives 18,132.39
     assert abs(r.objective - 18132.63) < 0.05
-    assert r.charging_hours == [11, 12, 13, 14, 15, 16]
+    # WHICH free-solar hours fill the battery is a tie: solar is curtailed in every one of them, so
+    # what leaks is replaced for nothing, and the notebook shows barrier and simplex picking
+    # different hours at the same cost. What every optimum shares is pinned instead: charging only
+    # at a zero price, at least ceil(160 MWh / (40 MW x 0.927)) = 5 hours of it, and the rest.
+    zero_price = {h for h in range(24) if abs(r.prices[h]) < FEASIBILITY_ATOL}
+    assert set(r.charging_hours) <= zero_price and len(r.charging_hours) >= 5
+    assert {11, 12, 13, 14, 15, 16} <= zero_price
     assert r.discharging_hours == [17, 18, 19, 20, 21, 22]
     assert r.peaker_hours == [19]
-    assert abs(r.prices[19] - 80.0) < 1e-6
-    assert all(abs(r.prices[h]) < 1e-6 for h in (11, 12, 13, 14, 15, 16))
+    assert abs(r.prices[19] - 80.0) < FEASIBILITY_ATOL
     assert r.prices[20] > 22.14 + 0.1        # the battery, not a generator, sets the evening price
+
+
+def test_days_per_year_is_a_knob_that_reaches_the_package(profiles):
+    a = energy.envelope_breakeven(profiles, 22.14)
+    b = energy.envelope_breakeven(profiles, 22.14, days_per_year=1.0)
+    assert rel_diff(a, 365.0 * b) < AGREEMENT_RTOL
+
+
+@needs_pypsa
+def test_a_dearer_day_of_capital_builds_less_solar(profiles, techs, env):
+    cheap = energy.solar_built(profiles, techs, energy.Battery(), 66_000, env)
+    dear = energy.solar_built(profiles, techs, energy.Battery(), 66_000, env, days_per_year=36.5)
+    assert dear < cheap - 1.0
 
 
 @needs_pypsa

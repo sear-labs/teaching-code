@@ -8,23 +8,26 @@ names is the record of what changed and why. Earlier reviews (of `01`, `03`, `04
 
 ## Status
 
+The first review's fifteen findings are fixed and the three notebooks re-executed; the second
+review's nine are open. `git log` carries what each fix changed and why.
+
 | # | item | where | status |
 |---|---|---|---|
-| A1 | charging-hour list compared though not unique; standing-loss "tie" story wrong | 12 cells 29-31, 42; `tests/test_energy.py` | open |
-| A2 | four `row dual` comparisons on a non-unique dual | 10 cells 21-22 | open |
-| A3 | row LP hardcodes payoffs instead of reading the table | 10 cell 10 | open |
-| A4 | leave-room: peaker and battery conclusions announced | 12 cell 21 | open |
-| A5 | leave-room: "Two things to notice" | 10 cell 13 | open |
-| A6 | exercise 2 promises an event that does not happen | 10 cell 23 | open |
-| A7 | `DAYS_PER_YEAR` typed on both sides, never passed | 12 cell 32; `energy.py` | open |
-| A8 | build-cap rule differs between hand and package | 12 cell 32 | open |
-| A9 | draw-order contract pinned by no test; "exactly" asserted as a tolerance | 09 cell 27; `tests/test_markov_queueing.py` | open |
-| A10 | "closer to 1 or 3" when L = 2 | 09 cell 17 | open |
-| A11 | "even though" inverted | 09 cell 17 | open |
-| A12 | SOC row written additively | 12 cell 25 | open |
-| A13 | hour 18 also above gas's cost | 12 cell 27 | open |
-| A14 | first day network loops where Part C wrote generators out | 12 cell 22 | open |
-| A15 | cosmetics: `np.float64` reprs, `n.buses` dump, literal tolerances in tests, defect story in prose | 09, 10, 12, tests | open |
+| A1 | charging-hour list compared though not unique; standing-loss "tie" story wrong | 12 cells 29-31, 42; `tests/test_energy.py` | fixed |
+| A2 | four `row dual` comparisons on a non-unique dual | 10 cells 21-22 | fixed |
+| A3 | row LP hardcodes payoffs instead of reading the table | 10 cell 10 | fixed |
+| A4 | leave-room: peaker and battery conclusions announced | 12 cell 21 | fixed |
+| A5 | leave-room: "Two things to notice" | 10 cell 13 | fixed |
+| A6 | exercise 2 promises an event that does not happen | 10 cell 23 | fixed |
+| A7 | `DAYS_PER_YEAR` typed on both sides, never passed | 12 cell 32; `energy.py` | fixed |
+| A8 | build-cap rule differs between hand and package | 12 cell 32 | fixed |
+| A9 | draw-order contract pinned by no test; "exactly" asserted as a tolerance | 09 cell 27; `tests/test_markov_queueing.py` | fixed |
+| A10 | "closer to 1 or 3" when L = 2 | 09 cell 17 | fixed |
+| A11 | "even though" inverted | 09 cell 17 | fixed |
+| A12 | SOC row written additively | 12 cell 25 | fixed |
+| A13 | hour 18 also above gas's cost | 12 cell 27 | fixed |
+| A14 | first day network loops where Part C wrote generators out | 12 cell 22 | fixed |
+| A15 | cosmetics: `np.float64` reprs, `n.buses` dump, literal tolerances in tests, defect story in prose | 09, 10, 12, tests | fixed |
 | B1 | "no processor rows" check compares the wrong objective | 13 cell 26 | open |
 | B2 | "shadow price is zero" asserts a non-unique dual | 13 cells 14-15; `sourcing.py` | open |
 | B3 | box story mis-attributed; exercise premise false (the lower bound is what matters) | 06 curve_fit cells 7, 19, exercise | open |

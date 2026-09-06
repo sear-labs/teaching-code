@@ -156,10 +156,13 @@ def one_hour_network(techs: dict, demand: float):
 
 
 def day_network(profiles: dict, techs: list, battery: Battery | None, expand: bool = False,
-                solar_capital_cost: float | None = None):
+                solar_capital_cost: float | None = None, days_per_year: float = DAYS_PER_YEAR):
     """Twenty-four hours. ``expand=True`` makes every generator's capacity a
-    decision (Module 0's Part F) priced at capital_cost / 365 per day;
-    ``solar_capital_cost`` overrides the table's solar figure for the sweep."""
+    decision (Module 0's Part F) priced at capital_cost / days_per_year per
+    day - the snapshots are one representative day, so a year of capital is
+    spread over ``days_per_year`` of them; ``solar_capital_cost`` overrides
+    the table's solar figure for the sweep. Both are knobs the notebook
+    names and passes in."""
     pypsa = _pypsa()
     n = pypsa.Network()
     n.set_snapshots(profiles["hour"])
@@ -171,7 +174,7 @@ def day_network(profiles: dict, techs: list, battery: Battery | None, expand: bo
             kw["p_max_pu"] = np.array(profiles["solar_pu"])
         if expand:
             capex = solar_capital_cost if (t.varies and solar_capital_cost is not None) else t.capital_cost
-            kw.update(p_nom_extendable=True, capital_cost=capex / DAYS_PER_YEAR)
+            kw.update(p_nom_extendable=True, capital_cost=capex / days_per_year)
             if t.p_nom_max > 0:
                 kw["p_nom_max"] = t.p_nom_max
         else:
@@ -209,13 +212,16 @@ def solve_day(n, env=None) -> DayResult:
     return DayResult(float(n.objective), built, charging, discharging, peaker, prices)
 
 
-def envelope_breakeven(profiles: dict, displaced_cost: float) -> float:
+def envelope_breakeven(profiles: dict, displaced_cost: float, days_per_year: float = DAYS_PER_YEAR) -> float:
     """The back-of-envelope value of one MW of solar: the energy it makes in a
-    day times the running cost it displaces, times 365. $/MW/year."""
-    return float(np.sum(profiles["solar_pu"])) * displaced_cost * DAYS_PER_YEAR
+    day times the running cost it displaces, times the days in a year.
+    $/MW/year."""
+    return float(np.sum(profiles["solar_pu"])) * displaced_cost * days_per_year
 
 
-def solar_built(profiles: dict, techs: list, battery: Battery | None, solar_capital_cost: float, env=None) -> float:
+def solar_built(profiles: dict, techs: list, battery: Battery | None, solar_capital_cost: float, env=None,
+                days_per_year: float = DAYS_PER_YEAR) -> float:
     """MW of solar the expansion model builds at this capital cost."""
-    n = day_network(profiles, techs, battery, expand=True, solar_capital_cost=solar_capital_cost)
+    n = day_network(profiles, techs, battery, expand=True, solar_capital_cost=solar_capital_cost,
+                    days_per_year=days_per_year)
     return solve_day(n, env).built["solar"]

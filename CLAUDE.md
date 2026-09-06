@@ -58,19 +58,26 @@ repository" is a reasonable first instinct and it has already been raised once.
 `sear-labs/advopt-lithiumsc` has the same *shape* as this repository — executed teaching notebooks,
 a package, an agreement assertion — so "why are these two things not one thing" needed an answer.
 
-> **The boundary is the instance, not the subject.** A **series** is notebooks that share one running
-> instance and are read in order. A **topic library** is notebooks that each stand alone on their own
-> instance and are chosen by subject. The test for any notebook is: **does it need the instance built
-> by the notebook before it?**
+> **The boundary is whether a notebook continues another one's model.** A **series** is notebooks
+> that form arcs: a later one takes an earlier one's model and adds a layer to it. A **topic library**
+> is notebooks that each start from a table and finish. The test for any notebook is: **does it pick
+> up where another left off, or does it stand on its own?**
 
-Measured rather than asserted, on 2026-09-05:
+Measured on 2026-09-05. *The first version of this section said advopt ran on one shared instance,
+from a regex that counted every instance load and could not tell one instance from six. It has six,
+and the corrected evidence is stronger for the same conclusion:*
 
 | | `advopt-lithiumsc` | this repository |
 |---|---|---|
-| notebooks on one shared instance | 14 of 15 | 0 of 17 |
-| reading order | `00_start_here`, then `01`→`05`; `04d` assumes `04c` | none; folders are subjects |
-| instance tables | one supply chain | 34, roughly two per notebook |
+| instance families | 6, each shared by a cluster of one to five notebooks | one per notebook |
+| notebooks continuing another | most of them, in their own words — `02c` "Same model as Part 2b", `03b` "Part 3 had one learning channel", `04d` "In Cournot (Part 4c)" | none; the three cross-references are see-alsos |
+| reading order | `00_start_here`, then a numbered arc | none; folders are subjects |
 | cited as a work | yes, `CITATION.cff` | no |
+
+Six instances rather than one does not weaken the case, because the clusters are where the arcs are:
+`01`'s network gains uncertainty in `02`, `02b`'s two-stage model gains a risk measure in `02c`,
+`03`'s core gains a second learning channel in `03b`, and one market instance carries `04ab` through
+`04e` as each adds a layer of strategic behaviour.
 
 **So advopt stays where it is, and does not fold in.** Splitting a series into topic folders destroys
 the sequence, and the sequence is its content. It is also cited as one work, which a topic library
@@ -86,8 +93,9 @@ case.** That `12` is REE's Module 0 is the rule working, not an exception to it 
 alone on one hour of dispatch, so it belongs here, while the modules that assume it belong to the
 series.
 
-**Where does new material go?** Ask whether it needs the instance before it. No — a subject folder
-here. Yes — the series it continues. A new arc over a new single instance — a new series repository.
+**Where does new material go?** Ask whether it continues a model somebody has already built. No — a
+subject folder here. Yes — the series it continues. A new arc, several notebooks layering on a model
+of their own — a new series repository.
 
 This is a decision about which of these repositories holds what, not a portable rule. Making it
 portable means petitioning Part 2b of the standard, which is Jones's call and not this file's.

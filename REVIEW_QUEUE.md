@@ -40,19 +40,28 @@ review's nine are open. `git log` carries what each fix changed and why.
 
 ## Before the first push
 
-Not from the reviews; from reading what the public repository would contain.
+Not from the reviews; from reading what the public repository would contain. **Done**, on
+2026-09-05:
 
-- `REPO_URL = None` in all seventeen setup cells. Set it to the GitHub URL and re-execute every
-  notebook (`12` in the `orteach-energy` kernel).
-- The licence cell exits on Colab unless three Colab Secrets exist. pip's `gurobipy` carries a
-  size-limited licence that every model in this library fits inside, so the cell should fall back to
-  it and no key is needed anywhere.
-- The setup cell prints the package's absolute path, so every committed output carries the author's
-  user name and OneDrive path. Print it relative to the repository root.
-- The Gurobi licence number is in the outputs of four commits' history (`5cbe945`, `bfe8228`,
-  `8acc3d4`, `e99d8da`). There is no remote yet, so rewriting is cheap now and expensive later.
+- `REPO_URL` is `https://github.com/sear-labs/teaching-code` in all seventeen setup cells, and the
+  "not published yet" exit is gone.
+- The licence cell no longer exits when no Colab Secret is set: it falls back to the size-limited
+  licence `pip install gurobipy` ships. Model sizes were measured rather than assumed - the largest
+  in the library is 3,001 variables and 3,000 constraints, both in `07`, and everything else is
+  under five hundred. So `07` is the one notebook that still needs a licence of its own, and its
+  licence cell says so.
+- The setup cell prints the package path relative to the repository root, so no committed output
+  carries an author's user name or OneDrive path any more.
+- The Gurobi licence number is out of the output history. The list above said four commits; scanning
+  every commit found six. Redacted with `git filter-repo`, so every hash in this repository changed
+  and the ones quoted in `README.md` were remapped.
+
+**Still open:**
+
 - `README.md` and `notebooks/12_energy_systems_pypsa/README.md` point at REE 4301 by its OneDrive
-  path. Replace with the URL once that repository is pushed.
+  path, because that repository has no remote. Replace with the URL once it is pushed.
+- Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
+- **The push itself.** No remote is configured; creating the repository is the owner's to do.
 
 ---
 

@@ -137,8 +137,8 @@ To re-execute a notebook: `jupyter nbconvert --to notebook --execute --inplace <
 `--ExecutePreprocessor.kernel_name=orteach-energy`).
 
 Every notebook has been read by a fresh-context reviewer against Parts 3, 4 and 10. The first nine
-reviews are folded into commit `80f5761`, the probability pair into `50e714f`, and `09`/`10`/`12`
-into `7f68b87`. **`REVIEW_QUEUE.md` holds the two most recent reviews verbatim with a status line per
+reviews are folded into commit `9054550`, the probability pair into `3084cf3`, and `09`/`10`/`12`
+into `33d47b6`. **`REVIEW_QUEUE.md` holds the two most recent reviews verbatim with a status line per
 finding; the nine on `06` and `13` are still open.** It also lists what has to change before the
 first push.
 

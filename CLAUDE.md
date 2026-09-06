@@ -53,12 +53,44 @@ repository" is a reasonable first instinct and it has already been raised once.
   visibility and the stricter rule would otherwise win. That split is already made, and `.gitignore`
   enforces it by pattern rather than by good intentions.
 
-**What is genuinely open is the other direction.** `sear-labs/advopt-lithiumsc` has the same shape as
-this repository — executed teaching notebooks plus a package plus an agreement assertion — and the
-line between "a course series that is cloned and taught as a unit" and "the topic library" is a
-judgement nobody has written down. `06`, `10`, `12` and `13` point at it rather than copying it,
-which is the right behaviour under either answer, so this is not urgent. Decide it before a third
-repository of this shape exists.
+### The series / topic-library boundary, decided 2026-09-05
+
+`sear-labs/advopt-lithiumsc` has the same *shape* as this repository — executed teaching notebooks,
+a package, an agreement assertion — so "why are these two things not one thing" needed an answer.
+
+> **The boundary is the instance, not the subject.** A **series** is notebooks that share one running
+> instance and are read in order. A **topic library** is notebooks that each stand alone on their own
+> instance and are chosen by subject. The test for any notebook is: **does it need the instance built
+> by the notebook before it?**
+
+Measured rather than asserted, on 2026-09-05:
+
+| | `advopt-lithiumsc` | this repository |
+|---|---|---|
+| notebooks on one shared instance | 14 of 15 | 0 of 17 |
+| reading order | `00_start_here`, then `01`→`05`; `04d` assumes `04c` | none; folders are subjects |
+| instance tables | one supply chain | 34, roughly two per notebook |
+| cited as a work | yes, `CITATION.cff` | no |
+
+**So advopt stays where it is, and does not fold in.** Splitting a series into topic folders destroys
+the sequence, and the sequence is its content. It is also cited as one work, which a topic library
+is not.
+
+**REE 4301 becomes its own series repository when it is pushed**, for the same reason — its modules
+run over one energy system in order. It is not a merge into this one.
+
+**A method may appear in both, and that is not duplication to remove.** Here it is taught on a small
+self-contained instance; there it is carried on a real one. The folder READMEs in `06`, `10`, `12`
+and `13` are what keeps the two honest: **the library teaches the method, the series carries the
+case.** That `12` is REE's Module 0 is the rule working, not an exception to it — Module 0 stands
+alone on one hour of dispatch, so it belongs here, while the modules that assume it belong to the
+series.
+
+**Where does new material go?** Ask whether it needs the instance before it. No — a subject folder
+here. Yes — the series it continues. A new arc over a new single instance — a new series repository.
+
+This is a decision about which of these repositories holds what, not a portable rule. Making it
+portable means petitioning Part 2b of the standard, which is Jones's call and not this file's.
 
 ## Layout
 

@@ -1,32 +1,29 @@
 # The energy-system series: layout plan
 
 The companion code for **Introduction to Energy System Modeling** by Erick C. Jones Jr., the CC BY
-open textbook. Rewritten 2026-09-06 against the manuscript. This file lives here until the
-repository it describes exists, then moves into it.
+open textbook. Written 2026-09-06 against the manuscript, then checked against the chapter text.
+This file lives here until the repository it describes exists, then moves into it.
 
 > **The manuscript is the source of truth, not the Pressbooks site.** The published book at
-> <https://uta.pressbooks.pub/energysystemmodeling> is the **1 September snapshot** and is two
-> chapters behind. Verified: the online contents match
-> `CARES Book/Archive/2026-09-01 pre-Part-IV-expansion/` heading for heading. Build any mapping
-> against `CARES Book/Manuscript/`, and re-check it whenever that folder changes.
+> <https://uta.pressbooks.pub/energysystemmodeling> is the **1 September snapshot**, two chapters
+> behind. Verified: the online contents match `CARES Book/Archive/2026-09-01 pre-Part-IV-expansion/`
+> heading for heading. Build any mapping against `CARES Book/Manuscript/` and re-check when it moves.
 
-**The book is the spine, not the semester.** A reader arrives from a chapter. Course codes (`M0`,
-`SB6`, `GRAD_N`) and term folders (`2026 Fall`) name a delivery of the course rather than the
-subject, and age badly for something revised over years.
+**The book is the spine, not the semester.** Course codes (`M0`, `SB6`, `GRAD_N`) and term folders
+(`2026 Fall`) name a delivery of the course rather than the subject.
 
 ---
 
-## The correction that matters most
+## Two corrections this plan already absorbed
 
-My previous draft named notebook folders for chapter numbers, `ch15_transport_problem` and so on.
-**That was wrong, and the book just proved it.** Part IV expanded from four chapters to six on
-1 September, so every chapter from 14 upward shifted by two. Chapter-numbered folders would have
-meant renaming ten directories and breaking every link into them, for an edit that changed no
-subject matter at all.
+**Folders are not named for chapter numbers.** Part IV expanded from four chapters to six on
+1 September, shifting every chapter from 14 up by two. Chapter-numbered folders would have meant
+renaming ten directories and breaking every link into them for an edit that changed no subject
+matter. Folders are named for their part and subject; **chapter numbers live in one mapping table
+and nowhere else.** Parts have been stable across the expansion; chapter numbers have not.
 
-> **Folders are named for their part and their subject. Chapter numbers live in one mapping table
-> and nowhere else.** Parts have been stable across the expansion; chapter numbers have not. When
-> the book renumbers again, one table changes and no path does.
+**The map was then checked against the chapter text, not the titles**, and that check moved four
+things. It is recorded below because a mapping built from titles looks finished and is not.
 
 ## Identity
 
@@ -37,8 +34,6 @@ subject matter at all.
 | code licence | MIT, matching `advopt-lithiumsc` and `code-standard` |
 | prose licence | CC BY 4.0 on notebooks and text, matching the book |
 | archetype | A + T: Parts 1–2 govern `src/`, Part 3 governs `notebooks/`, Part 4 the boundary |
-
-`teaching-code`'s missing `LICENSE` was added 2026-09-06.
 
 ## Layout
 
@@ -62,55 +57,80 @@ notebooks/
                           pipeline_transport.ipynb
                           power_flow_and_lmp.ipynb
                           real_network_import.ipynb
-                          texas_multi_city_buildout.ipynb
   p5_storage_supply/      storage_duration_sizing.ipynb               NEW
                           material_requirements.ipynb
-                          README.md  -> teaching-code 12 for the battery, 13 for sourcing
-  appendix/               facility_decision.ipynb
+                          README.md  -> teaching-code 12 battery, 13 transshipment
+  capstone/               texas_multi_city_buildout.ipynb
+                          facility_decision.ipynb
   graduate/               model_diversity.ipynb
 tests/  tools/  tools/builders/
 ```
 
 ## The mapping table
 
-Twenty-two chapters, five case studies, one appendix. This is the only place chapter numbers appear.
+Twenty-two chapters, five case studies, one appendix. The only place chapter numbers appear.
+Section numbers are the chapter's own, from the manuscript.
 
-| ch | title | companion |
+| ch | the section that wants it | companion |
 |---|---|---|
-| 1 | What Is Energy System Modeling | `model_boundary` (motivating exception) |
-| 2 | Physical Laws and Energy Balances | `one_house_balance` |
-| 3 | Building and Solving a Model | → teaching-code 12 |
-| 4 | Modeling in Code, PyPSA and Capacity Expansion | → teaching-code 12 |
-| 5 | Demand Fundamentals | `representative_days` |
-| 6 | Residential and Commercial Demand | `end_use_disaggregation` |
-| 7 | Industrial Demand | `process_heat_electrification` NEW |
-| 8 | Transportation Demand and Charging Infrastructure | `depot_charging` NEW |
-| 9 | Generation Metrics and the Modern Modeling Goal | `capital_and_lcoe` |
-| 10–12 | Thermal, Nuclear and Petroleum, Renewables | `screening_curves` NEW |
-| 13 | Spatial Mismatch and the Modalities of Movement | `cost_of_transit_by_mode` NEW |
-| **14** | **The Distribution System** | `feeder_hosting_capacity` NEW |
-| **15** | **Pipeline Capacity, Pressure, and Reliability** | `pipeline_pressure_and_n1` NEW |
-| 16 | The Economics of Energy Transit | `cost_of_transit_by_mode` NEW |
-| 17 | Network Optimization, The Transportation Problem | `pipeline_transport` |
-| 18 | Grid Physics and Discrete Logistics | `power_flow_and_lmp`, `real_network_import` |
-| 19 | Traditional and Battery Storage | → teaching-code 12 |
-| 20 | Long-Duration and Unconventional Storage | `storage_duration_sizing` NEW |
-| 21 | Energy Supply Chains and Material Intensity | `material_requirements` |
-| 22 | Supply-Chain Optimization and Trade Policy | → teaching-code 13 |
-| CS4 | The Energy Arteries | `texas_multi_city_buildout` |
-| App A | Writing the Capstone Final Report | `facility_decision` |
+| 1 | §1.4 Choosing the Boundary | `model_boundary` (motivating exception) |
+| 2 | §2.2 Visualizing the System: Energy Balances | `one_house_balance` |
+| 3 | §3.3 Temporal and Spatial Linking; §3.4 The Same Price, From Both Sides | → teaching-code 12; forward-refs `representative_days`, `model_boundary` |
+| 4 | §4.6 Reference Models: 1-Node and 3-Node | → teaching-code 12 |
+| 5 | §5.3 Grounding Models in Grid Data | `representative_days` |
+| 6 | §6.2 Smart Meters, Time Series, Appliance Signatures (NILM) | `end_use_disaggregation` |
+| 7 | §7.2 Process Heat: Low, Medium, High Grade | `process_heat_electrification` NEW |
+| 8 | §8.2 Charging Infrastructure and Policy | `depot_charging` NEW |
+| 9 | §9.1 Core Generation Metrics | `capital_and_lcoe` |
+| 10–12 | the three technology surveys | `screening_curves` NEW |
+| 13 | §13.2–13.3 Moving Electrons, Molecules and Solids | `cost_of_transit_by_mode` NEW |
+| 14 | §14.4 The Voltage Band and Hosting Capacity | `feeder_hosting_capacity` NEW |
+| 15 | §15.2 The Weymouth Relation; §15.5 Winter Storm Uri | `pipeline_pressure_and_n1` NEW; `real_network_import` |
+| 16 | §16.1 The Cost of Distance | `cost_of_transit_by_mode` NEW |
+| 17 | §17.2 The LP Formulation; §17.4 Expansion Trade Study | `pipeline_transport` |
+| 18 | §18.3 Congestion and LMP | `power_flow_and_lmp` |
+| 18 | §18.1 The Rail Constraint: Discrete vs Continuous | → teaching-code 05 |
+| 19 | §19.4 State-of-Charge; §19.5 Does the Battery Pay for Itself | → teaching-code 12 |
+| 20 | §20.2 The Storage Comparison | `storage_duration_sizing` NEW |
+| 21 | §21.4 A Reference Build, in Tons | `material_requirements` |
+| 22 | §22.1 The Transshipment Model | → teaching-code 13 |
+| CS1 | §V Linear Programming Formulation | none yet, see below |
+| CS2 | §V Linear Programming Formulation | none yet, see below |
+| CS3 | Grid Evolution Data Benchmark | `screening_curves` supports it |
+| CS4 | §II The LP Formulation; grad ext. DCOPF | `pipeline_transport`, `power_flow_and_lmp` |
+| CS5 | §III The Transshipment Model | → teaching-code 13; `material_requirements` |
+| App A | the four sector mini-projects integrated | `facility_decision`, `texas_multi_city_buildout` |
 
-Chapters 14 and 15 are the two the expansion added. Case Studies 1, 2, 3 and 5 have no companion;
-CS3 is a scenario sweep over the Texas instance rather than a new notebook, and CS2 is a scenario
-exercise better placed as a closing question in Chapter 22's material.
+## What the chapter-text check moved
+
+1. **Case Study 4 is not the Texas buildout.** Its text is the Permian and Eagle Ford crude-routing
+   problem with a DCOPF graduate extension, which is exactly what `pipeline_transport` and
+   `power_flow_and_lmp` already are. Chapter 17 even names the same five nodes those notebooks code.
+   The Texas multi-city buildout has no case study; it is capstone integration, and Appendix A
+   describes precisely that role, so it moves to `capstone/` beside `facility_decision`.
+2. **Case Studies 1 and 2 each carry a "Section V — Linear Programming Formulation."** They are not
+   narrative exercises. Last draft dismissed CS2 as a scenario exercise; that was wrong. Both are
+   genuine notebook openings, and CS1 is the transportation-demand case Chapter 8 needs.
+3. **Chapter 3 has a claim on two notebooks it does not own.** Its learning objective is the
+   representative-day abstraction and §3.4 is the price-from-both-sides argument, so it
+   forward-references `representative_days` and `model_boundary` rather than anchoring them.
+4. **Chapter 18 §18.1 is discrete rail flow**, which no energy notebook covers and
+   `teaching-code` 05 already teaches as branch and bound. One more sideways pointer.
+
+Also confirmed rather than assumed: §14.4 is literally "hosting capacity" and §15.2 is literally
+"The Weymouth Relation", so both new notebooks proposed last turn match their chapters' own
+sections. §15.1 is "What a Capacity Parameter Hides", the argument for splitting them from
+`pipeline_transport`. And `real_network_import` loads day 46 of 2021, which is Winter Storm Uri,
+the subject of §15.5.
 
 ## What does not move, because it is already published
 
 | chapter | already at |
 |---|---|
-| 3 and 4, building and solving, PyPSA | `teaching-code` notebook 12, which is REE Module 0 |
-| 19, battery storage | notebook 12, which carries the battery, its efficiencies and standing loss |
-| 22, supply-chain optimisation | notebook 13, named as REE Module 4's model in its own docstring |
+| 3 and 4 | `teaching-code` 12, which is REE Module 0 |
+| 18, discrete flow | `teaching-code` 05, branch and bound |
+| 19, battery and state of charge | `teaching-code` 12 |
+| 22 and CS5, transshipment | `teaching-code` 13, REE Module 4's model |
 
 This shrinks the Module 4 split to almost nothing: its sourcing LP is already notebook 13, so only
 the material-intensity accounting moves across, as Chapter 21's companion.
@@ -118,18 +138,17 @@ the material-intensity accounting moves across, as Chapter 21's companion.
 ## Placement rule
 
 **Anchor at the last chapter whose material the notebook needs; forward-reference from the first
-chapter that touches it.** A companion is only runnable once the reader has its prerequisites.
-
-One deliberate exception: a notebook whose job is to raise the question the chapters then answer
-anchors at the first chapter. `model_boundary` is that case.
+chapter that touches it.** A companion is only runnable once the reader has its prerequisites. One
+deliberate exception: a notebook that raises the question the chapters then answer anchors at the
+first chapter, as `model_boundary` does.
 
 **Split when the halves have different methods and different prerequisites**, not merely because a
-notebook touches two chapters. Only Module 4 fails that test.
+notebook touches two chapters.
 
 ## Vendored data
 
-Third-party files live in `data/vendor/`, never mixed with authored tables, each with a sidecar
-naming source URL, retrieval date, licence and citation. **None of the current sources is MIT.**
+`data/vendor/`, never mixed with authored tables, one sidecar per file naming source URL, retrieval
+date, licence and citation. **None of the current sources is MIT.**
 
 | file | licence | note |
 |---|---|---|
@@ -139,81 +158,150 @@ naming source URL, retrieval date, licence and citation. **None of the current s
 | Open-Meteo archive | CC BY 4.0 under their terms | an API; cache a snapshot |
 | TU Berlin cloud time series | **none stated** | replace, do not vendor |
 
-The GPL-3.0 cost tables are the one file in an MIT repository that will not be MIT. Legal so long as
-it keeps its notice and is not relicensed, but it should be a conscious choice. The TU Berlin file is
-unlicensed and behind a personal share link that can vanish, so it is both unredistributable and
-unreproducible.
-
 ## Seven new notebooks
 
-Coverage today is roughly ten of the twenty-eight chapter, case-study and appendix slots. These take
-it to about twenty. Each is small, reuses machinery already in the two repositories, and has an
-obvious agreement assertion.
+**`screening_curves`, Ch 10–12.** Cost per MWh against capacity factor for gas, coal, nuclear, solar,
+wind; the crossovers; the merit order falling out. No solver. The missing link between Chapter 9's
+metrics and every capacity model later, and it supports Case Study 3's benchmark table.
 
-**`screening_curves`, Chapters 10–12.** Cost per MWh against capacity factor for gas, coal, nuclear,
-solar and wind; the crossovers; the merit order falling out of them. No solver, so it is cheap. It is
-the missing link between Chapter 9's LCOE and every capacity model later: it answers why baseload and
-peaker are different machines rather than asserting it. Three chapters from one notebook.
+**`cost_of_transit_by_mode`, Ch 13 and 16.** Dollars per MWh-mile for transmission, pipeline, LNG,
+rail and truck, with energy density beside it. No solver. Gives Chapter 17's LP its motivation.
 
-**`cost_of_transit_by_mode`, Chapters 13 and 16.** Dollars per MWh-mile for transmission, pipeline,
-LNG, rail coal and diesel truck, with energy density beside it. No solver. It gives the transport
-model in Chapter 17 its motivation: you move fuel rather than electrons over distance, and here is
-the arithmetic that says so.
+**`feeder_hosting_capacity`, Ch 14.** A radial feeder with load along it and rooftop solar added;
+how much before voltage or transformer ratings bind. Matches §14.3 to §14.5 directly.
 
-**`feeder_hosting_capacity`, Chapter 14.** A radial distribution feeder with load along it and
-rooftop solar being added. How much can it host before voltage limits or transformer ratings bind?
-Teaches why distribution constrains the transition in a way transmission does not, and bridges the
-house in Part II to the grid in Chapter 18. One of the two chapters the expansion added.
+**`pipeline_pressure_and_n1`, Ch 15.** Flow follows the square root of a difference of squared
+pressures. Model pressure as a variable, then remove a compressor. Shows what the capacity bound in
+`pipeline_transport` hides, and the nonlinear relation needs lifting, so it reuses `teaching-code`
+notebook 06 directly. The clearest case of the method library serving the case series.
 
-**`pipeline_pressure_and_n1`, Chapter 15.** Gas flow is not a capacity bound: it follows the
-square root of the difference of squared pressures. Model a small network with pressure as a
-variable, then remove a compressor and re-solve. This is the notebook that shows what the capacity
-bound in `pipeline_transport` was hiding, and the nonlinear relation needs lifting, so it reuses
-teaching-code notebook 06 directly. The clearest case in the whole series of the method library
-serving the case series.
+**`depot_charging`, Ch 8.** A fleet returning at known times, a connection limit, a site demand
+charge. The demand charge is a cost on the peak, needing an auxiliary variable bounding every hour.
 
-**`depot_charging`, Chapter 8.** A fleet returning at known times with known energy needs, a
-connection limit, and a site demand charge. The demand charge is a cost on the peak, so it needs an
-auxiliary variable bounding every hour, the first genuinely new modelling trick since lifting. Gives
-Case Study 1 something to stand on.
+**`process_heat_electrification`, Ch 7.** Boiler against heat pump against resistance at temperature,
+with efficiency falling as the lift rises. §7.2's low, medium and high grade heat is the instance.
 
-**`process_heat_electrification`, Chapter 7.** Industrial process heat at temperature, currently
-gas-fired, choosing between boiler, heat pump and resistance against an hourly price. A heat pump's
-efficiency falls as the lift rises, which is why industrial electrification is harder than
-residential. Fills the one part where companions stop halfway.
+**`storage_duration_sizing`, Ch 20.** A multi-day wind lull sized twice, battery against hydrogen.
+The power-versus-energy split, extending the battery already in notebook 12.
 
-**`storage_duration_sizing`, Chapter 20.** A wind profile with a multi-day lull, sized twice: a
-battery with high round-trip efficiency and dear energy capacity, hydrogen with the opposite.
-Teaches the power-versus-energy split and why duration picks the technology. Extends the battery
-already in notebook 12 rather than rebuilding it.
+**Two more are now open, not proposed.** Case Studies 1 and 2 each carry an LP formulation and would
+each take a notebook. They are held back pending one decision: the case studies ship with instructor
+solution keys, and whether those keys are already public in the book decides whether a companion
+notebook can be.
 
-## A discipline the book already has, worth keeping
+## A discipline the book already has
 
-`Tools/build_figures.py` re-derives the merit-order dispatch and re-solves the battery, and
+`Tools/build_figures.py` re-derives the merit-order dispatch and re-solves the battery, then
 **asserts both against the notebooks' published output before drawing**, so a figure cannot drift
-from the code a student runs. That is an agreement assertion in everything but name, and it should
-move into the new repository and extend to every figure. The code-chunk plan already states the
-matching rule: chapters name the notebook that produces every figure.
+from the code a student runs. That is an agreement assertion in all but name. Move it across and
+extend it to every figure.
 
-## Build order
+---
 
-1. Repository, licences, README carrying the mapping table, builders, and the existing drift checker.
-2. Environment that runs all thirteen: PyPSA, Gurobi, PuLP, NetworkX, SciPy, Plotly, ipywidgets.
-3. Execute everything as-is and record what breaks. Diagnostic only.
-4. Vertical slice on `power_flow_and_lmp`: eighteen cells, two assertions already, no network fetch.
-   It fixes the package shape, the table layout and the assertion pattern before the rest inherit them.
-5. Tables into `data/raw/`, then the package, then one agreement assertion per notebook.
-6. `screening_curves` and `cost_of_transit_by_mode` next: cheapest, and four chapters between them.
-7. `feeder_hosting_capacity` and `pipeline_pressure_and_n1`, the two chapters the expansion added.
-8. The three remaining newcomers.
-9. Conventions pass, execute, commit with defect records, push. Repoint the two READMEs here.
+# How to start
+
+Six sessions. Each is a fresh chat with the prompt below pasted in. **Run them in order**; each
+assumes the previous one landed. Where to run each is the first line of its prompt.
+
+## 1. Scaffold
+
+Run in `C:\dev\teaching-code`, because this plan and the source folder are both reachable from there.
+
+```
+Work in C:\dev\teaching-code. Read ENERGY_SERIES_PLAN.md, then create the repository
+it describes at C:\dev\energy-system-modeling with FRESH history: git init, not a
+clone or a filter of the REE folder.
+
+Take only the thirteen notebooks from
+"...\Classes\REE 4301 - Energy System Modeling\2026 Fall\Notebooks\" and their
+notebook builders from that folder's Tools\ (the build_*_notebook.py, build_m*.py,
+build_sb*.py, build_1n_*, build_grad_*, build_toy_lp_*, build_powerflow_*,
+build_transport_*, build_supplychain_*, build_boundary_* set, plus
+check_builders.py). Take NOTHING else: no exams, no rubrics, no Canvas tooling, no
+book. Verify by search that none came along before the first commit.
+
+Lay the folders out as the plan says, named for part and subject, not chapter
+number. Add MIT LICENSE, a CC BY note for the notebooks, and a README carrying the
+mapping table verbatim and linking the Pressbooks book. Do not execute or edit any
+notebook yet. Create sear-labs/energy-system-modeling public and push.
+```
+
+## 2. Environment and diagnostic
+
+Run in `C:\dev\energy-system-modeling` from here on.
+
+```
+Read ENERGY_SERIES_PLAN.md. Build an environment that can run all thirteen
+notebooks: PyPSA, Gurobi, PuLP, NetworkX, SciPy, Plotly, ipywidgets. Record how, in
+a README, as a named kernel rather than a loose PYTHONPATH.
+
+Then execute all thirteen as they are and record what breaks in REVIEW_QUEUE.md,
+one row per notebook. This is a DIAGNOSTIC pass: do not fix content, do not
+restructure, do not add assertions. Two notebooks fetch data over the network and
+are expected to be among the failures. Commit the queue.
+```
+
+## 3. Vertical slice
+
+```
+Read ENERGY_SERIES_PLAN.md and REVIEW_QUEUE.md. Take power_flow_and_lmp end to end
+as the pattern every other notebook will copy: instance data out into data/raw as
+tables both sides read, an esm package module built from what the notebook builds
+by hand, one agreement assertion, the setup and licence cells, predict prompts, and
+the conventions pass. Port a check_notebooks.py from teaching-code and keep
+check_builders.py as the seed checker.
+
+Where an optimum is not unique, compare what every optimum shares and teach the tie
+in the prose. Do not compare the solver's path. Commit with the defect record.
+```
+
+## 4. Fan out
+
+One session per part; four of them, or fewer if they go quickly.
+
+```
+Read ENERGY_SERIES_PLAN.md, REVIEW_QUEUE.md, and the power_flow_and_lmp notebook,
+which is the pattern. Bring notebooks/p<N>_<name>/ up to that pattern: tables,
+package module, one agreement assertion each, conventions, executed in place. Run
+pytest, check_notebooks.py and check_seeds.py before committing.
+
+pipeline_transport needs a static capacity sweep before its sliders, because
+widgets record nothing when executed headlessly.
+```
+
+## 5. Vendored data, then the new notebooks
+
+```
+Read ENERGY_SERIES_PLAN.md. First vendor the external data into data/vendor with a
+sidecar each (source URL, retrieval date, licence, citation) and repoint the two
+notebooks that download at run time. The TU Berlin time series is unlicensed and
+behind a personal share link: replace it rather than vendor it. The PyPSA cost
+tables are GPL-3.0 and keep their own notice.
+
+Then write the two arithmetic newcomers, screening_curves and
+cost_of_transit_by_mode. They need no solver and cover four chapters between them.
+Then feeder_hosting_capacity and pipeline_pressure_and_n1, the two chapters the
+Part IV expansion added.
+```
+
+## 6. Close out
+
+```
+Read ENERGY_SERIES_PLAN.md. Write the three remaining new notebooks
+(depot_charging, process_heat_electrification, storage_duration_sizing), then move
+tools/build_figures.py across from the REE folder and extend its
+assert-against-published-output discipline to every figure.
+
+Finally, in C:\dev\teaching-code, repoint README.md and
+notebooks/12_energy_systems_pypsa/README.md at the new repository URL instead of
+the OneDrive path, and move this plan file into the new repository.
+```
 
 ## Open, still
 
-- A static capacity sweep must precede the sliders in `pipeline_transport`. Widgets render nothing
-  when executed headlessly, so the recorded output currently carries none of the lesson.
+- Whether Case Studies 1 and 2 get notebooks, which turns on whether their instructor solution keys
+  are already public in the book.
 - Whether the graduate notebooks sit in `graduate/` or as advanced companions inside their part.
-  `model_diversity` fits no chapter; `real_network_import` is Chapter 18 at real scale.
-- The mapping was built from manuscript chapter titles and the notebooks, not from chapter text.
-  Confirming it against the text is a real task.
-- The manuscript moves. Re-check the table against `CARES Book/Manuscript/` before trusting it.
+  `model_diversity` fits no chapter; `real_network_import` serves Chapters 15 and 18.
+- The manuscript moves. Re-check the mapping table against `CARES Book/Manuscript/` before trusting
+  it, and note that the Pressbooks site will lag it.

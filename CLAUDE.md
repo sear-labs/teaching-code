@@ -111,6 +111,26 @@ data/raw/  tests/
 **`notebooks/NN_subject` is the sort-key rule from Part 1 applied.** Zero-padded, so `01`–`14` order
 correctly and a fifteenth would too. Keep the padding when adding one.
 
+## Working notes that cost time to learn here
+
+Machine and tool facts, not portable rules. They lived in this session's auto-memory, which is keyed
+by folder path — so moving this repository to `C:\dev\` orphaned them. They belong with the repository.
+
+- **Backticks inside a Bash-tool heredoc break the call**, with `unexpected EOF while looking for
+  matching`. Markdown in a commit message or a seed script is full of them. Write those files with
+  the Write tool and use `git commit -F <file>`.
+- **A Windows path in a non-raw Python string is a live escape.** `C:\Users` makes `\U` an escape and
+  `\202` an octal character; the second produced an invisible control character that `grep` could not
+  find. Use raw strings, forward slashes, or build the separator with `chr(92)`. This has bitten
+  seven separate edits on this machine.
+- **Verify a clone by comparing `HEAD^{tree}`, never checked-out files.** A fresh clone checks out
+  CRLF against LF on disk, so every file appears to differ while the git objects are identical.
+- **A published notebook is not proven until the path a stranger takes is walked.** Clone the public
+  URL into a temporary directory, run the checker there, and confirm `../../src` resolves from inside
+  a notebook folder. `pip install git+...` ships no `data/raw`, so it proves nothing about the tables.
+- **Check a clone's branch before quoting it, and pull after.** A working copy on a feature branch
+  reads exactly like the standard, clean tree and all, while serving text nobody approved.
+
 ## Status, measured 2026-09-05
 
 Seventeen notebooks across twelve subjects (`02` empty on purpose), sixteen package modules, thirty-

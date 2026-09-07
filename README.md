@@ -112,8 +112,8 @@ with its payoffs missing for four, a least-squares fit that could only over-pred
 duals in ten folders, a ranging bound wrong by half. Read `git log` before assuming a course copy
 is right.
 
-The lithium supply-chain material (`sear-labs/advopt-lithiumsc`, public) and the rest of REE 4301 (a
-git repository on OneDrive, not yet pushed) are pointed at from `06`, `10`, `12` and `13`, not copied.
+The lithium supply-chain material (`sear-labs/advopt-lithiumsc`, public) and the rest of REE 4301
+(`sear-labs/energy-system-modeling`) are pointed at from `06`, `10`, `12` and `13`, not copied.
 
 ## Checking the work
 
@@ -157,6 +157,8 @@ first push.
   problem for re-executing notebooks here, not for a reader on Colab.
 - Exclude other people's material: `Krejci IE 3315 Lecture Notes` and `CorleyFiles` are not yours to
   publish. Solution keys are already excluded; the exam-score vectors in `14` are synthetic.
-- **`REE 4301` is pointed at by path**, from this file and from `notebooks/12_energy_systems_pypsa/`,
-  because it is a git repository on OneDrive with no remote. Push it and those two pointers become
-  URLs. The lithium material is already public at `sear-labs/advopt-lithiumsc`.
+- **REE 4301 is now a repository of its own**, [`sear-labs/energy-system-modeling`](https://github.com/sear-labs/energy-system-modeling),
+  created 2026-09-07 with fresh history. Both pointers that used to name a OneDrive path are
+  now that URL. **It is still private**, so the link 404s for anyone outside the org until it
+  is made public — which is a decision about the notebooks, not about this library. The
+  lithium material is already public at `sear-labs/advopt-lithiumsc`.

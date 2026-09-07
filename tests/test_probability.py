@@ -180,6 +180,29 @@ def test_multiple_regression_matches_r_on_mtcars():
     assert abs(fit.r2 - 0.8268) < 5e-5 and abs(fit.adj_r2 - 0.8083) < 5e-5 and abs(fit.f_stat - 44.57) < 5e-3
 
 
+def _statsmodels_or_skip():
+    """statsmodels, or skip -- for ANY reason it will not import.
+
+    `pytest.importorskip` catches ImportError only, so it guards against
+    "not installed" and not against "installed and broken". Those are different
+    failures and only one of them is the test's business.
+
+    The one that happened: pandas 3 changed the signature of `deprecate_kwarg`,
+    which statsmodels 0.14.x calls at import time, so it raised **TypeError** --
+    straight past importorskip, turning a missing optional cross-check into a
+    red suite. pyproject now requires statsmodels>=0.15, which survives pandas 3;
+    this keeps the failure a skip on any environment that has not caught up.
+
+    The numpy `lstsq` comparison above is unaffected and still runs, so skipping
+    here loses the second opinion, not the test.
+    """
+    try:
+        import statsmodels.api as sm
+    except Exception as exc:  # noqa: BLE001 - any failure to import is a skip
+        pytest.skip(f"statsmodels unusable here ({type(exc).__name__}: {exc})")
+    return sm
+
+
 def test_ols_matches_numpy_lstsq_and_statsmodels():
     mt = inf.load_table("mtcars.csv")
     X = np.column_stack([mt["disp"], mt["hp"], mt["wt"]])
@@ -187,7 +210,7 @@ def test_ols_matches_numpy_lstsq_and_statsmodels():
     A = np.column_stack([np.ones(32), X])
     beta, *_ = np.linalg.lstsq(A, np.array(mt["mpg"]), rcond=None)
     assert np.allclose(fit.coef, beta, rtol=AGREEMENT_RTOL, atol=1e-12)
-    sm = pytest.importorskip("statsmodels.api")
+    sm = _statsmodels_or_skip()
     res = sm.OLS(np.array(mt["mpg"]), A).fit()
     assert np.allclose(fit.se, res.bse, rtol=1e-9) and abs(fit.f_p - res.f_pvalue) < 1e-12
 

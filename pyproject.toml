@@ -19,7 +19,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9"]
+dev = [
+    "pytest>=8,<10",
+    # Test-only, and the lower bound is load-bearing rather than tidy: pandas 3
+    # changed the signature of `deprecate_kwarg`, which statsmodels 0.14.x calls
+    # at import time, so 0.14.x raises TypeError on import against a pandas-3
+    # environment. 0.15 is the first release that survives it.
+    #
+    # It is here rather than in `dependencies` because neither the package nor
+    # any notebook imports statsmodels -- one test does, as an independent
+    # cross-check of the OLS standard errors.
+    "statsmodels>=0.15,<1",
+]
+# `pandas` is deliberately absent from both lists. Nothing in `src/` imports it,
+# and exactly one notebook does; the package's own tables are plain dicts of
+# columns, which is why `inf.load_table` returns one. Declaring pandas here would
+# claim a dependency the library does not have.
 
 # This file exists so `pip install -e .` works, which is what makes the Colab
 # path possible: a notebook there installs the package and imports it, rather

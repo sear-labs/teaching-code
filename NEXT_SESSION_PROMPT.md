@@ -48,10 +48,16 @@ the nits are not.
 
     C:\Users\jonesec\OneDrive - UT Arlington\Documents\Classes\REE 4301 - Energy System Modeling
 
-Checked 2026-09-06: working tree clean, **no remote**, 49 commits, last one 2026-09-05 23:35. The
-parallel session that was committing to it appears to have stopped — nothing has touched it since.
-A bare mirror exists at `C:\Users\jonesec\dev\store\mirrors\Classes-REE-4301-Energy-System-Modeling.git`, on the same
-disk, which is redundancy and not backup.
+Checked 2026-09-06: working tree clean, **no remote**, 49 commits. A bare mirror sits at
+`<dev-root>\store\mirrors\Classes-REE-4301-Energy-System-Modeling.git`, on the same disk, which is
+redundancy and not backup.
+
+**The synced-`.git` hazard is already solved for this folder** and needs no decision. Its `.git` is a
+one-line pointer file reading `gitdir: <dev-root>/gitdirs/ree4301.git`, so the worktree keeps syncing
+and staying backed up while the history sits on local disk where two writers cannot reach it. The
+standard documents the arrangement, including that exactly one machine owns the gitdir and the others
+are *expected* to fail with `fatal: not a git repository`. `Curriculum Working Folder` is set up the
+same way. **Do not "fix" either by moving the worktree.**
 
 **The series repository needs fresh history, not a push of that one.** Three blockers, none of them
 privacy:
@@ -67,6 +73,18 @@ privacy:
    no package for an agreement assertion to compare against.
 
 Filtering the working tree is not enough: the exams and the book are in the 48-commit history.
+
+## Read Part 2c before creating the repository
+
+The standard grew from 1,615 to 2,216 lines between 2026-09-05 and 09-06, and **Part 2c — the life
+of a project** is new and governs exactly this task: how a repository is started, named, licensed and
+given provenance, and what must never be published. It opens on the thing that makes this go wrong —
+opening a session in a folder creates one path-keyed directory and nothing else, so git, the remote,
+the `CLAUDE.md` and the `.claude/` exist only because somebody made them. Read it before running
+`gh repo create`, not after.
+
+Two other additions land on this work: **accessibility for teaching material**, and the **licensing
+and provenance** rules. Neither existed when the plan below was written.
 
 ## What the new repository takes, and what stays behind
 
@@ -85,15 +103,15 @@ here; and a package for them to check against.
 Notebook `12` in this library is that series' Module 0 and was verified by running it. **The other
 twelve never have been.**
 
-## Two things to settle before touching the folder
+## One thing to settle before touching the folder
 
-Both are Jones's calls, not a session's:
+Jones's call, not a session's: **whether the private course folder gets a remote of its own.** It is
+2.9 GB with no remote, so OneDrive is its only off-machine backup and the local mirror is redundancy
+rather than backup. That is a separate decision from publishing the notebooks, and the separated
+gitdir does not address it — it fixed corruption risk, not durability.
 
-- **Moving it out of OneDrive.** It is 2.9 GB with no remote, so OneDrive is currently its only
-  off-machine backup. A move needs a backup decided first. Verify any move by comparing
-  `HEAD^{tree}`, never checked-out files — CRLF makes identical objects look different.
-- **Whether the private course folder gets a remote of its own**, which is the real answer to the
-  backup question but is a separate decision from publishing the notebooks.
+*(The old second item, moving the folder out of OneDrive, is moot: the separated gitdir gets both
+properties at once, and moving the worktree would lose the sync backup for nothing.)*
 
 ## What was already checked, so nobody re-runs it
 
@@ -104,13 +122,17 @@ and permission strings. No rosters, gradebooks, submissions, names, IDs, logins,
 No credential in the working tree or in any of the 48 commits; the Gurobi cells name three secrets
 and contain none, and the Canvas scripts read their token from the environment.
 
-> **A privacy question cannot be cleared against the Code Standard.** That document has zero
-> occurrences of FERPA, student record, education record, PII, personally identifiable, privacy or
-> data governance across its 1,615 lines — verified 2026-09-05. It governs how code is written and
-> has no jurisdiction over a federal privacy statute, so its silence is not clearance: the same
-> check returns "fine" on a repository that does hold a gradebook. **Open the files.** The rule this
-> library actually operates under came from Jones directly — student work is fine to hold privately,
-> and only publication crosses the line.
+> **A privacy question cannot be cleared against the Code Standard.** Re-checked 2026-09-06 against
+> its current 2,216 lines: FERPA, student record, PII, personally identifiable, privacy and data
+> governance still appear zero times. *Education record* now appears once — in Part 2c's **never
+> publish** list, which forbids publishing anything adjacent to one and says consolidated
+> observations about students qualify even with no name attached.
+>
+> That is a prohibition, not a test. It tells you what not to publish; it cannot tell you whether a
+> given file *is* one, which is the question that actually needed answering here. So the method is
+> unchanged: **open the files.** Silence is not clearance, and neither is a prohibition you have not
+> checked your files against. The operating rule came from Jones directly — student work is fine to
+> hold privately, and only publication crosses the line.
 
 ## House rules that will bite in the new repository
 
@@ -136,10 +158,9 @@ The same ones that bit here, and the reason the split above puts a strong model 
   OneDrive path, because that repository has no remote. **Replace both with the URL once it is
   pushed** — that is the last thing the REE work should do.
 - Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
-- `Documents\Classes\Advanced Opt Modeling Examples` still exists — a process held it open during
-  the 2026-09-05 move, so the new copy at `C:\Users\jonesec\dev\repo\teaching\advopt-lithiumsc` is a fresh clone rather than a
-  move. It is one commit stale and holds 54 ignored files including a `gurobi.lic`. Delete it once
-  nothing holds it, after deciding what to keep.
-- **Two repositories are still inside OneDrive, deliberately**: `Classes\REE 4301 - Energy System
-  Modeling` (2.9 GB) and `Classes\Curriculum Working Folder` (6.6 GB). See the backup question above;
-  it applies to both.
+- Rotate nothing on account of the two course folders in OneDrive: their `.git` trees were moved to
+  separated gitdirs on 2026-09-06 and the worktrees stay synced on purpose. What remains open for
+  both is durability, not corruption — see the backup question above.
+
+*(Closed since the last edit: the stale `Documents\Classes\Advanced Opt Modeling Examples` copy is
+gone, and the two OneDrive repositories no longer carry a synced `.git`.)*

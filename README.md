@@ -2,6 +2,23 @@
 
 Erick C. Jones Jr., IMSE, UT Arlington. Scaffolded 2026-09-03.
 
+## How to cite
+
+Licensed **MIT** — see [`LICENSE`](LICENSE). A licence sets the terms of reuse and does *not*
+get the work cited; those are two mechanisms, so this repo carries both.
+[`CITATION.cff`](CITATION.cff) drives GitHub's **"Cite this repository"** button, which is
+the point: people cite what is easy to cite, and friction is what stops them.
+
+```bibtex
+@software{jones_teaching_code,
+  author  = {Jones, Jr., Erick C.},
+  title   = {Teaching notebooks for IE 3315, IE 5301 and REE 4301},
+  year    = {2026},
+  url     = {https://github.com/sear-labs/teaching-code},
+  license = {MIT}
+}
+```
+
 The curated home for teaching notebooks across IE 3315, IE 5301 and REE 4301. One library rather
 than one repo per course, because the subjects are shared: LP formulation, duality, networks and
 stochastic programming all serve more than one course.

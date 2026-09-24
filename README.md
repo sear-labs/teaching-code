@@ -176,6 +176,5 @@ first push.
   publish. Solution keys are already excluded; the exam-score vectors in `14` are synthetic.
 - **REE 4301 is now a repository of its own**, [`sear-labs/energy-system-modeling`](https://github.com/sear-labs/energy-system-modeling),
   created 2026-09-07 with fresh history. Both pointers that used to name a OneDrive path are
-  now that URL. **It is still private**, so the link 404s for anyone outside the org until it
-  is made public — which is a decision about the notebooks, not about this library. The
-  lithium material is already public at `sear-labs/advopt-lithiumsc`.
+  now that URL, and since **2026-09-13 it is public**, so the link resolves for anyone. The
+  lithium material is public too, at `sear-labs/advopt-lithiumsc`.

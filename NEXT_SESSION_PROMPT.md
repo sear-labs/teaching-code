@@ -31,16 +31,23 @@ notebooks, `tools/check_seeds.py` on all eleven seeds.
 
 ---
 
-# The energy-system series now has its own repository
+# The energy-system series has its own repository, and it is public
 
-**Session 1 of six is done, 2026-09-07.**
+**Updated 2026-09-24. The twelve notebooks are finished; the seven new ones are not.**
 
-    sear-labs/energy-system-modeling     private, 40 files, first commit 78660d0
+    sear-labs/energy-system-modeling     PUBLIC since 2026-09-13, at 0f5f2c7
     dev/repo/teaching/energy-system-modeling
+
+    13 notebooks, all executing clean       11 modules in src/esm/       232 tests
+    agreement-assert   13/13                tolerance-named   13/13
 
 Twelve notebooks and thirteen tools came out of the private course folder with **fresh history**,
 and nothing else did. The exams, the Canvas quiz backup and the CARES manuscript stayed where they
 are. It was a copy, not a move — that folder is unchanged.
+
+The thirteenth notebook is new: `notebooks/p0_start/00_start_here.ipynb`, a front door that
+teaches nothing. It runs every model from the package on fixed data with no student-facing blank,
+which is why it was the one notebook publishable without any assignment-exposure question.
 
 ## Read the plan, not this file, for what happens next
 
@@ -60,17 +67,22 @@ done and its three departures recorded.
 > complete and stops the search.** If you add a scope to this file, name the document that governs
 > it in the same edit.
 
-**Session 2 is next**, run in the new repository. Build a durable named kernel — the working
-`orteach-energy` one lives under `AppData/Local/Temp` and must not be depended on — then execute all
-twelve notebooks as they are and record what breaks, one row each. It is a **diagnostic**: do not
-fix content, do not restructure, do not add assertions. Two notebooks fetch over the network and are
-expected among the failures.
+**Sessions 2 through 5 are done.** All twelve execute clean, each ends with an agreement
+assertion against an independent implementation in `src/esm/`, and the data-licence questions the
+plan listed are settled (see the plan and `data/vendor/README.md`). **What remains of the plan is
+the seven notebooks it names as NEW** — `screening_curves`, `cost_of_transit_by_mode`,
+`storage_duration_sizing`, `depot_charging`, `feeder_hosting_capacity`, `pipeline_pressure_and_n1`,
+`process_heat_electrification`. None exists. That is the largest open item in the series by a wide
+margin, and the plan, not this file, specifies them.
 
 ## Settled on the way, so nobody reopens it
 
-- **Name and visibility.** `energy-system-modeling`, private for now; public once the notebooks are
-  executed. Colab badges wait for that, and the README says why rather than shipping badges that
-  404 for every student.
+- **Name and visibility — settled and acted on.** `energy-system-modeling`, public since
+  2026-09-13 on Jones's explicit instruction. Colab badges ship and resolve. Two things were
+  decided to get there and should not be reopened from this file alone: the four worked-example
+  assignments (SB3, SB6, GRAD-M, GRAD-N) were ruled publishable, and `case_ACTIVSg2000.m` is
+  vendored and redistributed — its sidecar carries the full licence position and a two-step
+  reversal.
 - **Twelve notebooks crossed, not the thirteen the plan's own session-1 prompt asked for.**
   `M0_Toy_LP_to_PyPSA` stayed behind because `notebooks/12_energy_systems_pypsa` here **is** it,
   executed and verified. The new repository's `p1_foundations/README.md` points at it rather than
@@ -80,8 +92,10 @@ expected among the failures.
   `build_*notebook*.py`, which is the reliable test and selects exactly the right twelve.
 - **No FERPA problem and no credentials**, re-verified on the copied tree rather than on the source.
   Every Gurobi mention is the same empty `WLS = {}` placeholder.
-- **Still nothing is executed.** 190 code cells, zero outputs, five notebooks with no assertion at
-  all, and no package yet. That is session 2's starting line, and the new README states it up front.
+- **Everything is executed, and the package exists.** That bullet used to read "still nothing is
+  executed, and no package yet"; it was session 2's starting line and is now three weeks out of
+  date. `tools/check_notebooks.py` reports the current state at any time and is the thing to run
+  rather than a number written here.
 
 ## Still Jones's call
 
@@ -91,15 +105,40 @@ separated gitdir fixed corruption risk, not durability — and this session chan
 
 ---
 
+## Harvest note — 2026-09-24
+
+The session that finished the energy-system notebooks was harvested and archived on this date.
+**Nothing of it lives only in a chat.** Where its state went:
+
+| what | where it lives now |
+|---|---|
+| what each change did, and the defect it fixed | the twelve commit messages in `energy-system-modeling`; this repo's convention is that the commit carries the defect record |
+| why each package module solves a second way | the module docstrings in `src/esm/` |
+| the current audit state | run `tools/check_notebooks.py`; no file records it, on purpose |
+| what is still to build | `ENERGY_SERIES_PLAN.md` in that repository — the seven NEW notebooks |
+| the licence position on vendored data | `data/vendor/README.md` and the per-file sidecars |
+| repository status and visibility | the block above |
+
+**Parked deliberately, not forgotten:** alt text for `06_end_use_disaggregation`,
+`15_real_network_import` and `17_pipeline_transport` — eight descriptions. The CARES book's
+figure manifest covers none of those three, so it is new work rather than reuse; Jones assigned
+it to a figures session.
+
+**One inference went to the carry-forward queue** (`yamierick/claude-notes`, c7dc10b) rather than
+here, because it is a candidate rule and not a fact about this repository: *a check that cannot
+fail is worse than no check, because it reads as coverage.* Four instances in one session, each
+caught by a printed number rather than by review or by the suite.
+
+---
+
 ## Still open in this repository, beyond the closed queue
 
 - Second notebooks for `05` (Gandhi cloth fixed charge, Portfolio logic) and `07` (server-farm
   two-stage LP, bakery VSS/EVPI).
 - Roughly 140 files in the original migration queue were never classified or read.
-- `README.md` and `notebooks/12_energy_systems_pypsa/README.md` still point at REE 4301 by its
-  OneDrive path. The repository now exists, but it is **private**, so swapping in the URL today
-  would hand a public reader a 404 instead of a useless path. **Replace both when it goes public** —
-  session 6 of the plan does this, and it is the last thing the energy-series work should do.
+- ~~`README.md` and `notebooks/12_energy_systems_pypsa/README.md` point at REE 4301 by its
+  OneDrive path.~~ **Done.** Both carry the GitHub URL, and since 2026-09-13 it resolves for
+  anyone rather than 404ing.
 - Rotate the Gurobi WLS key. Nothing here needs it, but it is still live in shared Drive copies.
 - Rotate nothing on account of the two course folders in OneDrive: their `.git` trees were moved to
   separated gitdirs on 2026-09-06 and the worktrees stay synced on purpose. What remains open for

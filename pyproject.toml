@@ -30,11 +30,24 @@ dev = [
     # any notebook imports statsmodels -- one test does, as an independent
     # cross-check of the OLS standard errors.
     "statsmodels>=0.15,<1",
+    # CI lints with it (.github/workflows/ci.yml). Pinned to a minor series
+    # because ruff adds rules between minors, and a lint that goes red on an
+    # unrelated push gets switched off.
+    "ruff>=0.15,<0.16",
 ]
-# `pandas` is deliberately absent from both lists. Nothing in `src/` imports it,
-# and exactly one notebook does; the package's own tables are plain dicts of
-# columns, which is why `inf.load_table` returns one. Declaring pandas here would
-# claim a dependency the library does not have.
+# Only `12_energy_systems_pypsa` and the PyPSA half of tests/test_energy.py need
+# this. It is an extra rather than a dependency because PyPSA 1.3 requires
+# pandas 3, and forcing that on every install is how the authoring machine ended
+# up with a separate kernel for one notebook. CI installs it in its own job.
+energy = [
+    "pypsa>=1.3,<2",
+    "pandas>=3,<4",
+]
+# `pandas` is deliberately absent from `dependencies` and `dev`. Nothing in
+# `src/` imports it, and the only notebook that does is 12, whose extra above
+# declares it; the package's own tables are plain dicts of columns, which is why
+# `inf.load_table` returns one. Declaring pandas there would claim a dependency
+# the library does not have.
 
 # This file exists so `pip install -e .` works, which is what makes the Colab
 # path possible: a notebook there installs the package and imports it, rather
@@ -46,3 +59,9 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# Notebooks are narrative, not modules: a teaching cell that repeats itself or
+# keeps a knob inline is correct there (standard Part 4), and a linter would
+# flag exactly that. tools/check_notebooks.py is what guards them.
+extend-exclude = ["notebooks"]

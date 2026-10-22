@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import csv
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import gurobipy as gp
 import numpy as np

@@ -75,7 +75,10 @@ def check(path: Path) -> list[str]:
     cells = nb.get("cells", [])
     fails = []
     code_cells = [c for c in cells if c.get("cell_type") == "code"]
-    src = lambda c: "".join(c.get("source", []))
+
+    def src(c):
+        return "".join(c.get("source", []))
+
     all_code = "\n".join(src(c) for c in code_cells)
     all_md = "\n".join(src(c) for c in cells if c.get("cell_type") == "markdown")
 
@@ -129,13 +132,14 @@ def check(path: Path) -> list[str]:
     # agreement assertion, and the tolerance imported rather than typed
     if not AGREE_RE.search(all_code):
         fails.append("no agreement assertion against AGREEMENT_RTOL")
-    assert_lines = [l for l in all_code.splitlines() if "assert" in l and TOL_LITERAL_RE.search(l)]
+    assert_lines = [ln for ln in all_code.splitlines()
+                    if "assert" in ln and TOL_LITERAL_RE.search(ln)]
     if assert_lines:
         fails.append("tolerance literal inside an assert - import it from orteach.tolerance: %s"
                      % assert_lines[0].strip()[:70])
     # a threshold assigned to a name and then asserted on is the same literal one line away
-    thresh_lines = [l for l in all_code.splitlines()
-                    if TOL_LITERAL_RE.search(l) and re.search(r"[<>]=?\s*1e-|1e-\d+\s*[<>]", l)]
+    thresh_lines = [ln for ln in all_code.splitlines()
+                    if TOL_LITERAL_RE.search(ln) and re.search(r"[<>]=?\s*1e-|1e-\d+\s*[<>]", ln)]
     if thresh_lines:
         fails.append("tolerance literal used as a threshold - name it in orteach.tolerance: %s"
                      % thresh_lines[0].strip()[:70])

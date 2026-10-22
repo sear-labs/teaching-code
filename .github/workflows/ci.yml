@@ -1,0 +1,88 @@
+# The "clean machine" of standard Part 1 rule 6, adapted from
+# sear-labs/code-standard templates/.github/workflows/ci.yml.
+#
+# Needs no secrets. `pip install gurobipy` ships a size-limited licence (2,000
+# variables and constraints), which every model in this library fits inside
+# except the ones tests/conftest.py marks `needs_full_licence`. Those skip here,
+# visibly, with a reason, and run on a machine with a full licence. Nothing in
+# this workflow reads a licence key, and nothing should.
+#
+# Two jobs, because PyPSA 1.3 needs pandas 3 and the rest of the library does
+# not; see pyproject.toml's `energy` extra.
+#
+# A push is finished when this run has been read, not when `git push` returns.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"   # what the authoring machine ran: 3.13.9
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Part 1 rule 3: a range says what the code tolerates, not what ran.
+      # This puts the resolved record in the log, dated, at no cost.
+      - name: Record what actually ran
+        run: |
+          python --version
+          pip freeze
+
+      - name: Tests
+        run: pytest -q -rs
+
+      # The machine-checkable half of the pre-ship checklist (standard Part 10),
+      # over every notebook: executed, no orphan cells, no function above the
+      # streamlined heading, a predict prompt, the agreement assertion, and
+      # every number in the prose produced by an output.
+      - name: Notebook checklist
+        run: python tools/check_notebooks.py
+
+      # A seed that has fallen behind its notebook would silently undo a fix
+      # the next time someone ran it.
+      - name: Seeds reproduce their notebooks
+        run: python tools/check_seeds.py
+
+      # After the tests, so a lint failure never masks a real one.
+      - name: Lint
+        run: ruff check .
+
+  energy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,energy]"
+
+      - name: Record what actually ran
+        run: |
+          python --version
+          pip freeze
+
+      # ORTEACH_REQUIRE_PYPSA turns "PyPSA did not import" from a skip into a
+      # failure. Without it this job could go green having tested nothing.
+      - name: PyPSA tests
+        env:
+          ORTEACH_REQUIRE_PYPSA: "1"
+        run: pytest -q -rs tests/test_energy.py

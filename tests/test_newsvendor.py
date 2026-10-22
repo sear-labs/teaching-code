@@ -18,6 +18,10 @@ from orteach.tolerance import AGREEMENT_RTOL, FEASIBILITY_ATOL  # noqa: E402
 
 COST, RETAIL, RECOVER = 2, 15, -3
 
+# The scenario model is 3,002 variables, past the size-limited licence: every test
+# that solves it is marked, and skips on that licence. See conftest.py.
+needs_full_licence = pytest.mark.needs_full_licence
+
 
 @pytest.fixture(scope="module")
 def demand():
@@ -34,6 +38,7 @@ def results(demand):
     }
 
 
+@needs_full_licence
 def test_the_chain_of_bounds_stays_ordered(results):
     """PI >= stochastic >= EV. The single most important invariant here.
 
@@ -44,11 +49,13 @@ def test_the_chain_of_bounds_stays_ordered(results):
     assert pi >= sp >= ev, "bounds out of order: PI=%.2f SP=%.2f EV=%.2f" % (pi, sp, ev)
 
 
+@needs_full_licence
 def test_evpi_and_vss_are_non_negative(results):
     assert nv.evpi(results["sp"], results["pi"]) >= 0
     assert nv.vss(results["sp"], results["ev"]) >= 0
 
 
+@needs_full_licence
 def test_risk_aversion_buys_a_better_floor_and_pays_for_it(results):
     """The max-worst-case order must have a worst case at least as good as the
     risk-neutral one, and must not beat it on the average — otherwise it would
@@ -58,6 +65,7 @@ def test_risk_aversion_buys_a_better_floor_and_pays_for_it(results):
     assert worst.expected_profit <= sp.expected_profit + FEASIBILITY_ATOL
 
 
+@needs_full_licence
 def test_evaluate_order_agrees_with_the_solver(demand, results):
     """Scoring the stochastic order by arithmetic must reproduce what the solver
     reported. Two numbers being compared, produced by one accounting."""
@@ -67,6 +75,7 @@ def test_evaluate_order_agrees_with_the_solver(demand, results):
     assert rel < AGREEMENT_RTOL, "solver and arithmetic disagree by %.2e" % rel
 
 
+@needs_full_licence
 def test_no_scenario_sells_more_than_it_could(demand, results):
     """A shape assert, not a status check: profit can never exceed selling the
     whole order at retail."""
@@ -97,6 +106,7 @@ def test_the_demand_table_regenerates_exactly():
         "data/raw/newsvendor_demand.csv no longer matches generate_demand()"
 
 
+@needs_full_licence
 def test_the_order_is_the_critical_fractile(demand, results):
     """Newsvendor theory: the optimal order is the c_u / (c_u + c_o) quantile
     of demand, with c_u = RETAIL - COST the margin lost on a missed sale and
@@ -109,6 +119,7 @@ def test_the_order_is_the_critical_fractile(demand, results):
     assert abs(results["sp"].order - sorted(demand)[k]) < FEASIBILITY_ATOL
 
 
+@needs_full_licence
 def test_the_headline_numbers_the_notebook_prints():
     """Regression pin on the shipped table: the stochastic order. If the table
     or the economics change this fails, which is the point."""

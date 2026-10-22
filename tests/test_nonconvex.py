@@ -124,7 +124,8 @@ def test_forcing_nonnegative_residuals_reproduces_what_shipped(traffic, env):
     with gp.Model(env=env) as m:
         tolerance.apply(m)
         m.Params.NonConvex = 2
-        b0 = m.addVar(lb=0, ub=5e6); b1 = m.addVar(lb=max(v) + 1, ub=50_000)
+        b0 = m.addVar(lb=0, ub=5e6)
+        b1 = m.addVar(lb=max(v) + 1, ub=50_000)
         ot = [m.addVar(lb=1 / (50_000 - vi), ub=1 / (max(v) + 1 - vi)) for vi in v]
         r = [m.addVar(lb=0.0, ub=PR_BOX) for _ in v]                   # the defect: lb=0
         for i, vi in enumerate(v):

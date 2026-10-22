@@ -2,6 +2,17 @@
 
 Erick C. Jones Jr., IMSE, UT Arlington. Scaffolded 2026-09-03.
 
+[![CI](https://github.com/sear-labs/teaching-code/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sear-labs/teaching-code/actions/workflows/ci.yml)
+
+**What this is for.** One checked copy of each worked optimisation example taught in IE 3315,
+IE 5301 and REE 4301, which a student can open on Colab and run top to bottom. It replaced dozens
+of near-identical notebooks scattered across term folders. Those had drifted apart, and several had
+shipped wrong answers for years: a diet with protein capped instead of required, a budget goal
+that told the solver to spend at least the budget, a game solved with its payoffs missing. Each
+notebook here is built by hand for teaching, and a package in `src/` builds the same model
+independently. The notebook's last cell asserts the two agree, and the tests and CI keep them
+agreeing. The defect each migration fixed is recorded in `git log`.
+
 ## How to cite
 
 Licensed **MIT** — see [`LICENSE`](LICENSE). A licence sets the terms of reuse and does *not*
@@ -135,10 +146,19 @@ The lithium supply-chain material (`sear-labs/advopt-lithiumsc`, public) and the
 ## Checking the work
 
 ```bash
+pip install -e ".[dev]"                       # the package, pytest, statsmodels, ruff
+pip install -e ".[dev,energy]"                # add PyPSA, for 12 and the rest of tests/test_energy.py
 python -m pytest tests/ -q                    # domain invariants, regression pins, R and textbook values
 python tools/check_notebooks.py               # Part 10, the machine-checkable half, every notebook
 python tools/check_seeds.py                   # every seed still reproduces its committed notebook
 ```
+
+**CI runs all three, plus `ruff check .`, on every push and pull request**
+(`.github/workflows/ci.yml`), on a clean Linux machine with no licence key. A separate job runs
+the PyPSA tests and fails, rather than skips, if PyPSA will not import. CI has only the
+size-limited licence `pip install gurobipy` ships, so the seven newsvendor tests that solve its
+3,002-variable scenario model skip there with that reason printed (`tests/conftest.py`); they run
+on any machine with a full licence.
 
 The checker refuses: an unexecuted notebook or an error output, an orphan code cell, a function or
 named lambda before the "Now the streamlined version" heading, no predict-before-you-run prompt, no

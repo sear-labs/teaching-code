@@ -67,6 +67,14 @@ try:
 except ImportError:
     HAS_PYPSA = False
 
+# A skip is right in the base environment and wrong in the job that exists to
+# run these. CI's energy job sets ORTEACH_REQUIRE_PYPSA=1, so a broken PyPSA
+# install there fails the run instead of reporting a green job that tested
+# nothing.
+if os.environ.get("ORTEACH_REQUIRE_PYPSA") == "1" and not HAS_PYPSA:
+    raise ImportError("ORTEACH_REQUIRE_PYPSA=1 but PyPSA does not import; "
+                      "install the extra: pip install -e '.[dev,energy]'")
+
 needs_pypsa = pytest.mark.skipif(not HAS_PYPSA, reason="PyPSA is not installed in this environment")
 
 

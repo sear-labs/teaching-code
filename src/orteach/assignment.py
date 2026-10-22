@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import gurobipy as gp
 
 from . import tolerance
-from .transportation import Instance, solve as solve_transport
+from .transportation import Instance
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "data", "raw")

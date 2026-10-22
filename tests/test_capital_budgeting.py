@@ -110,5 +110,8 @@ def test_greedy_by_npv_per_dollar_in_whole_units_matches_the_integer_optimum(inv
     t0, t1, taken, npv = BUDGET_T0, BUDGET_T1, set(), 0.0
     for r in order:
         if r["cost_t0"] <= t0 + FEASIBILITY_ATOL and r["cost_t1"] <= t1 + FEASIBILITY_ATOL:
-            t0 -= r["cost_t0"]; t1 -= r["cost_t1"]; taken.add(r["investment"]); npv += r["npv"]
+            t0 -= r["cost_t0"]
+            t1 -= r["cost_t1"]
+            taken.add(r["investment"])
+            npv += r["npv"]
     assert abs(npv - ip.npv) < FEASIBILITY_ATOL

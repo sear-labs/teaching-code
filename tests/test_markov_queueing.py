@@ -75,7 +75,8 @@ def test_absorption_matches_brute_force(absorbing):
     assert ab.absorbing == ["C"]
     ti = [absorbing.index(s) for s in ab.transient]
     for k, s in enumerate(ab.transient):
-        start = np.zeros(4); start[absorbing.index(s)] = 1.0
+        start = np.zeros(4)
+        start[absorbing.index(s)] = 1.0
         expected = 0.0
         dist = start.copy()
         for n in range(2000):

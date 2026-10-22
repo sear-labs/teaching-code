@@ -65,7 +65,8 @@ def distribution_after(chain: Chain, start, n: int) -> np.ndarray:
     """Where the chain is after n steps, starting from a state name or a
     probability vector over states."""
     if isinstance(start, str):
-        pi0 = np.zeros(len(chain.states)); pi0[chain.index(start)] = 1.0
+        pi0 = np.zeros(len(chain.states))
+        pi0[chain.index(start)] = 1.0
     else:
         pi0 = np.asarray(start, dtype=float)
     return pi0 @ n_step(chain, n)
@@ -78,7 +79,8 @@ def steady_state(chain: Chain) -> np.ndarray:
     n = len(chain.states)
     A = chain.P.T - np.eye(n)
     A[-1, :] = 1.0
-    b = np.zeros(n); b[-1] = 1.0
+    b = np.zeros(n)
+    b[-1] = 1.0
     return np.linalg.solve(A, b)
 
 

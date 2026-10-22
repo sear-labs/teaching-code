@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
 from orteach import distributions as d, inference as inf  # noqa: E402
-from orteach.tolerance import AGREEMENT_RTOL, FEASIBILITY_ATOL, rel_diff  # noqa: E402
+from orteach.tolerance import AGREEMENT_RTOL, rel_diff  # noqa: E402
 
 R_ROUNDED = 5e-4     # R printed three decimals
 

@@ -586,6 +586,179 @@ print(f"\nnotebook and package agree to {worst:.1e}")
 md(r"""
 ---
 
+## Explore — for your reflection
+
+Nothing above changes. Each slider below rebuilds the day through the package, using
+`energy.day_network` and `energy.solve_day`, which the agreement check has just compared against
+what you built by hand. So whatever a slider shows is this model's answer to your numbers. Press
+**Run Interact** to solve. The two **edit-and-run** cells ask you to write something yourself.
+Answer the numbered questions in your reflection.
+
+These are wrappers, so they belong down here, and the first cell checks that at the table's own
+numbers they rebuild exactly the day you built in Part E.
+""")
+code(r'''
+import dataclasses
+import matplotlib.pyplot as plt
+from ipywidgets import interact_manual, FloatSlider, IntSlider
+
+
+def day_with(battery_mw, battery_hours, solar_mw, peaker_cost, peak_hour):
+    """Part E's day with your numbers, built and solved by the package."""
+    profiles = energy.day_profiles(peak_hour=peak_hour)
+    fleet = []
+    for t in techs:
+        if t.name == "solar":
+            t = dataclasses.replace(t, p_nom=solar_mw)
+        elif t.name == "peaker":
+            t = dataclasses.replace(t, marginal_cost=peaker_cost)
+        fleet.append(t)
+    bat = energy.Battery(battery_mw, battery_hours, EFFICIENCY, STANDING_LOSS, CYCLE_COST)
+    n = energy.day_network(profiles, fleet, bat)
+    return profiles, n, energy.solve_day(n, env)
+
+
+_, _, check_day = day_with(BATTERY_MW, BATTERY_HOURS, T["solar"].p_nom, T["peaker"].marginal_cost, 19)
+assert rel_diff(check_day.objective, day_cost) < AGREEMENT_RTOL, \
+    "the explorer does not rebuild Part E's day (it builds demand from the formula, not the table)"
+print(f"at the table's numbers the explorer rebuilds Part E's day: ${check_day.objective:,.2f}")
+''')
+
+md(r"""
+### Slide it: one day, with a battery
+
+The picture the sliders draw. Line style and marker, not colour alone, tell the five series apart,
+and a printed sentence under the plot says what it shows.
+""")
+code(r'''
+def explore_day(battery_mw, battery_hours, solar_mw, peaker_cost, peak_hour):
+    """Solve the day with these numbers, plot the dispatch, and say what it shows."""
+    profiles, n, r = day_with(battery_mw, battery_hours, solar_mw, peaker_cost, peak_hour)
+    hours = profiles["hour"]
+    fig, ax = plt.subplots(figsize=(9, 3.5))
+    ax.plot(hours, profiles["demand_mw"], "k-", lw=2, label="demand")
+    ax.plot(hours, n.generators_t.p["solar"], "o-", ms=3, label="solar")
+    ax.plot(hours, n.generators_t.p["gas"], "s--", ms=3, label="gas")
+    ax.plot(hours, n.generators_t.p["peaker"], "^:", ms=4, label="peaker")
+    if len(n.storage_units):
+        ax.plot(hours, n.storage_units_t.p["battery"], "d-.", ms=3, label="battery (+ out, - in)")
+    ax.axhline(0, color="grey", lw=0.5)
+    ax.set_xlabel("hour")
+    ax.set_ylabel("MW")
+    ax.set_title(f"day cost ${r.objective:,.0f}")
+    ax.legend(loc="upper left", fontsize=8)
+    plt.show()
+    battery = (f"charges in {len(r.charging_hours)} hours and discharges in hours {r.discharging_hours}"
+               if r.discharging_hours else "is never used")
+    peaker = f"runs in hours {r.peaker_hours}" if r.peaker_hours else "never runs"
+    print(f"Figure: dispatch over 24 hours with demand peaking at hour {peak_hour}. "
+          f"The battery {battery}; the peaker {peaker}.")
+    print(f"day cost ${r.objective:,.2f}   prices ${min(r.prices):.2f} to ${max(r.prices):.2f}/MWh")
+''')
+
+md(r"""
+Move the sliders, then press **Run Interact**.
+
+> **1.** Grow the battery from 0 to 120 MW in steps of 20, everything else as it is. Write down the
+> day cost each time. Does every 20 MW save the same amount? Where does it stop helping, and what is
+> still running in the hour it stops?
+>
+> **2.** Cut solar to 60 MW. Does the battery still charge at midday? Where does its energy come
+> from now, and what does that do to the evening prices?
+>
+> **3.** Raise the peaker's cost to $300. Predict first: does the schedule change, the prices, the
+> day cost, or all three?
+""")
+code(r'''
+interact_manual(explore_day,
+                battery_mw=FloatSlider(min=0, max=150, step=10, value=BATTERY_MW, description="battery MW"),
+                battery_hours=FloatSlider(min=1, max=8, step=1, value=BATTERY_HOURS, description="battery h"),
+                solar_mw=FloatSlider(min=0, max=400, step=20, value=T["solar"].p_nom, description="solar MW"),
+                peaker_cost=FloatSlider(min=40, max=400, step=10, value=T["peaker"].marginal_cost,
+                                        description="peaker $/MWh"),
+                peak_hour=IntSlider(min=0, max=23, step=1, value=19, description="peak hour"));
+''')
+
+md(r"""
+### Slide it: what gets built
+
+Part F's build, with the solar capital cost and the battery as sliders. The first lines check that at
+the table's prices it builds what you built by hand.
+""")
+code(r'''
+def build_with(solar_capex, battery_mw):
+    """Part F's build with your numbers; capex in $/MW-year."""
+    bat = energy.Battery(battery_mw, BATTERY_HOURS, EFFICIENCY, STANDING_LOSS, CYCLE_COST)
+    n = energy.day_network(day, techs, bat, expand=True, solar_capital_cost=solar_capex,
+                           days_per_year=DAYS_PER_YEAR)
+    return energy.solve_day(n, env)
+
+
+def explore_build(solar_capex, battery_mw):
+    r = build_with(solar_capex, battery_mw)
+    print("   ".join(f"{g} {mw:6.1f} MW" for g, mw in r.built.items()), f"   day cost ${r.objective:,.0f}")
+
+
+check_build = build_with(SOLAR_CAPEX, BATTERY_MW)
+assert max(rel_diff(built[g], check_build.built[g]) for g in built) < AGREEMENT_RTOL, \
+    "the build explorer does not rebuild Part F"
+print("at the table's prices the build explorer builds what you built:",
+      {g: round(mw, 1) for g, mw in check_build.built.items()})
+
+interact_manual(explore_build,
+                solar_capex=FloatSlider(min=40_000, max=120_000, step=1_000, value=SOLAR_CAPEX,
+                                        description="solar $/MW-yr"),
+                battery_mw=FloatSlider(min=0, max=150, step=10, value=BATTERY_MW, description="battery MW"));
+''')
+
+md(r"""
+> **4.** Find the solar capital cost at which the model starts to build solar. Then double the
+> battery and find it again. Did the break-even move, and in which direction? Why would a battery
+> change what solar is worth?
+
+### Edit and run: write a constraint yourself
+
+Part B's one-hour model is copied first, so nothing above changes. Give the gas unit a **minimum
+output of 70 MW** this hour, a minimum-stable-generation rule. Write the one line where the comment
+is, then run the cell. Until you do, it prints Part B's answer and says so.
+""")
+code(r'''
+m_min = m.copy()                                     # Part B's model; the original is left alone
+p_min = {g: m_min.getVarByName(f"p[{g}]") for g in AVAILABLE}
+
+# m_min.addConstr(___, name="gas_min")               # <- your line: gas runs at least 70 MW
+
+m_min.optimize()
+if m_min.getConstrByName("gas_min") is None:
+    print("No constraint named gas_min yet, so this is still Part B's answer. Write the line above.")
+print(f"cost ${m_min.ObjVal:,.2f}")
+for g in AVAILABLE:
+    print(f"  {g:6} {p_min[g].X:6.1f} MW")
+print(f"shadow price on balance ${m_min.getConstrByName('balance').Pi:.2f}/MWh")
+''')
+
+md(r"""
+> **5.** Before you run: what happens to solar's output, and to the price? After: which technology is
+> on the margin now, and why is the price what it is? Then make the same rule in PyPSA: which
+> `Generator` attribute does it? (`n.generators.columns` lists them.)
+
+### Edit and run: move the peak
+
+Change the number in the call, not the function.
+""")
+code(r'''
+explore_day(BATTERY_MW, BATTERY_HOURS, T["solar"].p_nom, T["peaker"].marginal_cost,
+            peak_hour=19)          # try 13: demand peaks while the sun is up
+''')
+
+md(r"""
+> **6.** Predict what the battery does when the peak moves to 13:00, then run it. Which result in
+> this notebook depended on the evening peak, and which did not?
+""")
+
+md(r"""
+---
+
 ## Where to take this next
 
 - Add a coal plant — 200 MW available at $19.90/MWh — to *both* one-hour models, and confirm they

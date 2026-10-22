@@ -1,19 +1,26 @@
 # 12 — Energy systems and PyPSA
 
 `dispatch_to_pypsa.ipynb` is REE 4301's Module 0: one hour of dispatch on paper, in gurobipy and in
-PyPSA; then a day with a battery; then capacity as a decision. Package: `orteach.energy`.
+PyPSA; then a day with a battery; then capacity as a decision. It ends with an **Explore**
+section: sliders for the battery day and the build decision, a cell where the reader writes a
+gurobipy constraint, and one that moves the demand peak. The sliders call the package, and the
+first Explore cell checks that, at the table's numbers, they rebuild the day built by hand.
+Package: `orteach.energy`.
 
-## This notebook needs PyPSA, and PyPSA needs its own environment
+## This notebook needs PyPSA, and PyPSA needs pandas 3
 
-PyPSA 1.3 requires pandas 3, which the Anaconda base environment on the authoring machine does not
-have (and upgrading it would break other things). So the notebook runs in its own environment, and
-its kernel metadata says so: `orteach-energy`. To make one:
+PyPSA 1.3 requires pandas 3, so the notebook's kernel metadata names its own environment,
+`orteach-energy`. The repository's `energy` extra declares what it needs. To make one:
 
 ```bash
-python -m venv <short-path>/orteach-energy          # a SHORT path: Windows long-path limits broke the first attempt
-<short-path>/orteach-energy/Scripts/pip install pypsa highspy "gurobipy>=11,<14" ipykernel nbconvert matplotlib pytest
+python -m venv <short-path>/orteach-energy          # a SHORT path, and NOT under a Temp folder (see below)
+<short-path>/orteach-energy/Scripts/pip install -e ".[dev,energy]" ipykernel nbconvert
 <short-path>/orteach-energy/Scripts/python -m ipykernel install --user --name orteach-energy --display-name "Python (orteach-energy: pypsa)"
 ```
+
+Keep it out of any Temp folder. The first one was built in `AppData\Local\Temp`, which Windows
+cleaned; the kernel registration survived and pointed at nothing, so `nbconvert` could not start
+it.
 
 Then open the notebook with that kernel, or execute it with
 `jupyter nbconvert --execute --ExecutePreprocessor.kernel_name=orteach-energy`. The PyPSA half of
@@ -23,13 +30,14 @@ Then open the notebook with that kernel, or execute it with
 <short-path>/orteach-energy/Scripts/python -m pytest tests/test_energy.py
 ```
 
-On Colab the setup cell installs PyPSA itself.
+On Colab the setup cell installs PyPSA itself, and ipywidgets is already there. CI runs the PyPSA
+tests in a job of their own that fails if PyPSA will not import.
 
 ## The rest of REE 4301 is its own repository now
 
 [`sear-labs/energy-system-modeling`](https://github.com/sear-labs/energy-system-modeling) — created
 2026-09-07 with fresh history out of the private course folder, which keeps the exams and the book.
-**It is private for now**, so that link 404s until the notebooks are made public.
+Public since 2026-09-13.
 
 `dispatch_to_pypsa.ipynb` here **is** that series' first foundation notebook, and it deliberately
 did not travel: the series points at this folder instead of keeping a second copy, because the

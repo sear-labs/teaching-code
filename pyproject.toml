@@ -42,6 +42,9 @@ dev = [
 energy = [
     "pypsa>=1.3,<2",
     "pandas>=3,<4",
+    # The notebook's Explore section uses sliders. Colab ships ipywidgets; a
+    # local kernel needs it declared.
+    "ipywidgets>=8,<9",
 ]
 # `pandas` is deliberately absent from `dependencies` and `dev`. Nothing in
 # `src/` imports it, and the only notebook that does is 12, whose extra above

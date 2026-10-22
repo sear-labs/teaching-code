@@ -42,10 +42,13 @@ DAYS_PER_YEAR = 365.0
 
 # ------------------------------------------------------------------ tables
 
-def day_profiles() -> dict:
+def day_profiles(peak_hour: int = 19) -> dict:
     """Module 0's synthetic day: a 50 MW base, a morning bump at 8, the real
-    peak at 19; solar a half-sine from 6 to 19. Rounded to what the CSV holds."""
-    demand = 50 + 60 * np.exp(-((HOURS - 19) ** 2) / 12.0) + 18 * np.exp(-((HOURS - 8) ** 2) / 6.0)
+    peak at ``peak_hour`` (19 in the table); solar a half-sine from 6 to 19.
+    Rounded to what the CSV holds. The notebook's Explore section moves the
+    peak to ask which of its results depended on an evening peak."""
+    demand = (50 + 60 * np.exp(-((HOURS - peak_hour) ** 2) / 12.0)
+              + 18 * np.exp(-((HOURS - 8) ** 2) / 6.0))
     solar = np.clip(np.sin(np.pi * (HOURS - 6) / 13), 0, 1)
     return {"hour": [int(h) for h in HOURS],
             "demand_mw": [round(float(d), 4) for d in demand],

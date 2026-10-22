@@ -40,6 +40,16 @@ def test_the_profile_table_regenerates_exactly(profiles):
     assert abs(sum(profiles["solar_pu"]) - 8.24) < 0.01
 
 
+def test_moving_the_peak_moves_only_the_peak(profiles):
+    """The Explore section's move-the-peak cell. The default must be the
+    table exactly, or every Explore result is off a different day."""
+    assert energy.day_profiles(peak_hour=19) == profiles
+    noon = energy.day_profiles(peak_hour=13)
+    assert int(np.argmax(noon["demand_mw"])) == 13
+    assert noon["solar_pu"] == profiles["solar_pu"]
+    assert max(noon["demand_mw"]) == pytest.approx(max(profiles["demand_mw"]), abs=0.5)
+
+
 def test_the_generator_table(techs):
     names = [t.name for t in techs]
     assert names == ["solar", "gas", "peaker"]

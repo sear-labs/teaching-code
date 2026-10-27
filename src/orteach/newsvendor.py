@@ -17,6 +17,8 @@ The four solvers answer four different questions about the same situation:
     solve_expected_value      one order quantity, chosen as if demand were certain
     solve_perfect_information one order quantity PER scenario - a clairvoyant
     solve_max_worst_case      the order that makes the worst scenario least bad
+    solve_cvar                best average of the worst (1 - alpha) share, mixed with the mean
+    solve_var                 best (1 - alpha) quantile: a MIP, one binary per scenario
 
 The gaps between them are the content: EVPI is what clairvoyance would be worth,
 VSS is what modelling uncertainty is worth.
@@ -172,6 +174,92 @@ def solve_max_worst_case(demand, cost, retail, recover, env=None) -> NewsvendorR
         m.addConstrs((worst <= profit[i] for i in range(n)), name="worst")
         m.optimize()
         return NewsvendorResult(order.X, [profit[i].X for i in range(n)], "max worst case")
+
+
+# --------------------------------------------- tail risk (risk_measures.ipynb, 2026-10-27)
+#
+# VaR and CVaR at level alpha are defined here on a sample whose tail is a whole number of
+# scenarios, (1 - alpha) * n. Then there is no fractional-tail convention to argue about:
+# CVaR is the mean of the worst k profits, VaR the (k+1)-th worst, and the LP and MIP below
+# return exactly those numbers. A sample that does not divide is refused, not rounded.
+
+def _tail_size(n: int, alpha: float) -> int:
+    k = round((1 - alpha) * n)
+    if k < 1 or abs((1 - alpha) * n - k) > 1e-9:
+        raise ValueError("(1 - alpha) * n = %g is not a whole number of scenarios; choose n and alpha "
+                         "so it is (e.g. n = 400, alpha = 0.75 gives a tail of 100)" % ((1 - alpha) * n))
+    return k
+
+
+def tail_stats(profits, alpha: float) -> tuple[float, float]:
+    """(VaR, CVaR) of a profit sample at level alpha: the (k+1)-th worst profit, and the mean of
+    the k worst, where k = (1 - alpha) * n."""
+    k = _tail_size(len(profits), alpha)
+    s = sorted(profits)
+    return s[k], sum(s[:k]) / k
+
+
+def solve_cvar(demand, cost, retail, recover, alpha, beta=1.0, env=None) -> NewsvendorResult:
+    """Maximise (1 - beta) * mean profit + beta * CVaR_alpha(profit). beta = 0 is the
+    risk-neutral order (solve_stochastic); beta = 1 is pure CVaR. An LP, by the
+    Rockafellar-Uryasev form: CVaR = max over nu of nu - E[(nu - profit)^+] / (1 - alpha).
+
+    Profits are re-scored from the order: a scenario above nu does not reach the objective, so
+    the solver may leave its sales short and its profit variable is not the order's profit."""
+    _check_economics(cost, retail, recover)
+    n = len(demand)
+    k = _tail_size(n, alpha)
+    lo, hi = _bounds(demand, cost, retail, recover)
+    with gp.Model(env=env) as m:
+        tolerance.apply(m)
+        m.ModelSense = gp.GRB.MAXIMIZE
+        order = m.addVar(name="order")
+        profit = m.addVars(n, lb=lo, ub=hi, name="profit")
+        sales = m.addVars(n, ub=demand, name="sales")
+        discount = m.addVars(n, name="discount")
+        m.addConstrs((profit[i] == -order * cost + sales[i] * retail
+                      + recover * discount[i] for i in range(n)), name="profit")
+        m.addConstrs((sales[i] + discount[i] == order for i in range(n)), name="demand")
+        nu = m.addVar(lb=-hi, ub=hi, name="nu")
+        excess = m.addVars(n, ub=hi - lo, name="excess")
+        m.addConstrs((excess[i] >= nu - profit[i] for i in range(n)), name="excess")
+        m.setObjective((1 - beta) * profit.sum() / n + beta * (nu - excess.sum() / k))
+        m.optimize()
+        if m.Status != gp.GRB.OPTIMAL:
+            raise RuntimeError("CVaR model ended with status %d" % m.Status)
+        result = evaluate_order(demand, cost, retail, recover, order.X)
+        result.label = "CVaR mix, beta %g" % beta
+        return result
+
+
+def solve_var(demand, cost, retail, recover, alpha, env=None) -> NewsvendorResult:
+    """Maximise VaR_alpha(profit): the largest w such that profit >= w in all but (1 - alpha) * n
+    scenarios. A MIP, one binary per scenario excusing it via a big-M term. Profits re-scored
+    from the order, because an excused scenario's profit variable is unconstrained from above."""
+    _check_economics(cost, retail, recover)
+    n = len(demand)
+    k = _tail_size(n, alpha)
+    lo, hi = _bounds(demand, cost, retail, recover)
+    with gp.Model(env=env) as m:
+        tolerance.apply(m)
+        m.ModelSense = gp.GRB.MAXIMIZE
+        order = m.addVar(name="order")
+        profit = m.addVars(n, lb=lo, ub=hi, name="profit")
+        sales = m.addVars(n, ub=demand, name="sales")
+        discount = m.addVars(n, name="discount")
+        m.addConstrs((profit[i] == -order * cost + sales[i] * retail
+                      + recover * discount[i] for i in range(n)), name="profit")
+        m.addConstrs((sales[i] + discount[i] == order for i in range(n)), name="demand")
+        worst = m.addVar(lb=lo, ub=hi, obj=1.0, name="worst")
+        excused = m.addVars(n, vtype=gp.GRB.BINARY, name="excused")
+        m.addConstrs((worst - (hi - lo) * excused[i] <= profit[i] for i in range(n)), name="worst")
+        m.addConstr(excused.sum() <= k, name="budget")
+        m.optimize()
+        if m.Status != gp.GRB.OPTIMAL:
+            raise RuntimeError("VaR model ended with status %d" % m.Status)
+        result = evaluate_order(demand, cost, retail, recover, order.X)
+        result.label = "VaR"
+        return result
 
 
 def evpi(stochastic: NewsvendorResult, perfect: NewsvendorResult) -> float:

@@ -24,7 +24,6 @@ at a local optimum; Gurobi's spatial branch-and-bound proves the global one.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import gurobipy as gp
@@ -32,8 +31,7 @@ import numpy as np
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 # ----------------------------------------------------------------------------- traffic fit
@@ -46,7 +44,7 @@ class Traffic:
 
 
 def load_traffic() -> Traffic:
-    with open(os.path.join(DATA_DIR, "traffic_counts.csv"), encoding="utf-8") as f:
+    with open(paths.table("traffic_counts.csv"), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return Traffic([float(r["volume"]) for r in rows], [float(r["travel_time"]) for r in rows])
 
@@ -148,9 +146,9 @@ class Pooling:
 
 
 def load_pooling() -> Pooling:
-    with open(os.path.join(DATA_DIR, "pooling_sources.csv"), encoding="utf-8") as f:
+    with open(paths.table("pooling_sources.csv"), encoding="utf-8") as f:
         srows = list(csv.DictReader(f))
-    with open(os.path.join(DATA_DIR, "pooling_products.csv"), encoding="utf-8") as f:
+    with open(paths.table("pooling_products.csv"), encoding="utf-8") as f:
         prows = list(csv.DictReader(f))
     return Pooling(
         sources=[r["source"] for r in srows], products=[r["product"] for r in prows],

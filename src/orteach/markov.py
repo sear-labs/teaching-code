@@ -14,15 +14,13 @@ the fundamental matrix - and checks itself against this module.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import numpy as np
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 ROW_SUM_ATOL = tolerance.LINALG_ATOL
 
@@ -49,7 +47,7 @@ class Chain:
 
 
 def load_chain(filename: str) -> Chain:
-    with open(os.path.join(DATA_DIR, filename), encoding="utf-8") as f:
+    with open(paths.table(filename), encoding="utf-8") as f:
         recs = list(csv.DictReader(f))
     states = [k for k in recs[0].keys() if k != "state"]
     P = np.array([[float(r[s]) for s in states] for r in recs])

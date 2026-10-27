@@ -34,6 +34,9 @@ dev = [
     # because ruff adds rules between minors, and a lint that goes red on an
     # unrelated push gets switched off.
     "ruff>=0.15,<0.16",
+    # tests/test_dependencies.py reads this file. tomllib is standard library from 3.11; on
+    # 3.10 the backport is declared rather than skipped, so the guard always runs.
+    "tomli>=2,<3; python_version < '3.11'",
 ]
 # Only `12_energy_systems_pypsa` and the PyPSA half of tests/test_energy.py need
 # this. It is an extra rather than a dependency because PyPSA 1.3 requires

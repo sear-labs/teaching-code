@@ -25,15 +25,13 @@ are already in use: how far a cost can move before the plan changes shape.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass, field
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -58,14 +56,14 @@ def load_instance(arcs_csv, nodes_csv, cost_col, qty_col, scale=1.0, name="") ->
     demands are given in units and converted here, in one place, by a named
     number."""
     arcs = {}
-    with open(os.path.join(DATA_DIR, arcs_csv), encoding="utf-8") as f:
+    with open(paths.table(arcs_csv), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
         cols = list(rows[0].keys())
         o_col, d_col = cols[0], cols[1]          # first two columns name the arc
         for r in rows:
             arcs[(r[o_col], r[d_col])] = float(r[cost_col])
     supply, demand = {}, {}
-    with open(os.path.join(DATA_DIR, nodes_csv), encoding="utf-8") as f:
+    with open(paths.table(nodes_csv), encoding="utf-8") as f:
         for r in csv.DictReader(f):
             q = float(r[qty_col]) / scale
             (supply if r["kind"] == "supply" else demand)[r["node"]] = q

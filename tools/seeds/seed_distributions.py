@@ -40,6 +40,7 @@ code(r'''
 import os, subprocess, sys
 
 REPO_URL = "https://github.com/sear-labs/teaching-code"
+REF = "v1.0.0"                               # the release this notebook ships in: Colab clones THIS
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab
@@ -49,7 +50,7 @@ except ImportError:
 
 if ON_COLAB:
     if not os.path.isdir("/content/teaching-code"):
-        subprocess.run(["git", "clone", "--quiet", REPO_URL, "/content/teaching-code"], check=True)
+        subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", REF, REPO_URL, "/content/teaching-code"], check=True)
     os.chdir("/content/teaching-code/notebooks/14_probability_and_stats")
     subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "gurobipy>=11,<14"], check=True)
 
@@ -103,6 +104,8 @@ print(f"sample mean {sample.mean():.3f}   n p = {N_BINOM * P_BINOM}      sample 
       f"sqrt(n p (1-p)) = {math.sqrt(N_BINOM * P_BINOM * (1 - P_BINOM)):.3f}")
 plt.hist(sample, bins=range(sample.min(), sample.max() + 2), color="lightblue", edgecolor="white")
 plt.axvline(sample.mean(), color="red"); plt.title("Binomial(100, 0.25): 10,000 draws"); plt.show()
+print(f"Figure: a histogram of the {N_SAMPLE:,} binomial draws, mound-shaped from {sample.min()} to "
+      f"{sample.max()}, peaking near {sample.mean():.1f}, with a vertical line at the sample mean.")
 ''')
 
 md(r"""
@@ -291,6 +294,8 @@ grid = np.linspace(10, 90, 200)
 plt.plot(sample, ecdf, ".", ms=2, label="empirical")
 plt.plot(grid, [0.5 * (1 + math.erf((g - 50) / (10 * math.sqrt(2)))) for g in grid], "k-", lw=1, label="formula")
 plt.legend(); plt.title("Normal(50, 10): empirical CDF of 10,000 draws"); plt.show()
+print(f"Figure: the empirical CDF of the {N_SAMPLE:,} draws (dots) lies on the formula's S-shaped "
+      f"curve (solid line), rising from 0 near 20 to 1 near 80 and passing 0.5 at 50.")
 print(f"largest gap between the two: {np.max(np.abs(ecdf - stats.norm.cdf(sample, 50, 10))):.4f}")
 ''')
 
@@ -338,6 +343,9 @@ axes[0].hist(population, bins=40, color="lightblue"); axes[0].set_title("populat
 for ax, size in zip(axes[1:], SIZES):
     ax.hist(means[size], bins=30, color="lightgreen"); ax.set_title(f"means of samples of {size}")
 plt.tight_layout(); plt.show()
+print(f"Figure: four histograms. The exponential population is skewed hard to the right; the "
+      f"means of samples of {SIZES[0]}, {SIZES[1]} and {SIZES[2]} are mound-shaped around 4, with spreads "
+      f"(standard deviation) {means[SIZES[0]].std():.3f}, {means[SIZES[1]].std():.3f} and {means[SIZES[2]].std():.3f}.")
 ''')
 
 md(r"""

@@ -98,6 +98,11 @@ to be public.
 - **`data/raw/`** — instance *tables*: many entries, indexed by the model's own sets, named nowhere
   in the prose. Both the notebook and the package read them from here. A scalar carrying a concept —
   a rate, a count, a breakpoint — is a **knob** and stays written out inline in the cell.
+  The package finds them through one function, `orteach.paths.table()`, local copy first: an
+  explicit `data_dir=`, then `$ORTEACH_DATA`, then `data/raw` beside the code (a clone), then
+  `data/raw` under the working directory, and only then the release's raw URL, fetched once and
+  cached. The first two are refused if the file is missing, never skipped, so a reader who points
+  at an edited copy can never silently get the published numbers instead.
 - **`tests/`** — at minimum a smoke test asserting the domain invariants: totals that must balance,
   quantities that cannot go negative.
 
@@ -174,7 +179,12 @@ The checker refuses: an unexecuted notebook or an error output, an orphan code c
 named lambda before the "Now the streamlined version" heading, no predict-before-you-run prompt, no
 agreement assertion, a tolerance literal used as a threshold, a seed set but not printed, a cell too
 long to read without scrolling, a number in the prose that no output produced, a licence banner in
-an output, and a notebook without the Colab setup cell.
+an output, a notebook without the Colab setup cell, a setup cell that does not clone the release
+`orteach.paths.TAG` names, and a figure whose cell prints no `Figure:` line saying what it shows
+(its text alternative, written in the same cell as the plot).
+
+`tests/test_dependencies.py` parses every import in `src/`, `notebooks/` and `tests/` and fails on
+anything `pyproject.toml` does not declare. `tests/test_paths.py` pins the table resolver's order.
 
 Eleven of the notebooks are written by a script in `tools/seeds/`, which is where to edit them: change
 the seed, run it, then execute the notebook in place so it ships with outputs. `tools/check_seeds.py`
@@ -183,6 +193,20 @@ whatever was fixed since.
 
 To re-execute a notebook: `jupyter nbconvert --to notebook --execute --inplace <path>` (for `12`, add
 `--ExecutePreprocessor.kernel_name=orteach-energy`).
+
+### Cutting a release
+
+A notebook handed to students must not change under them, so on Colab each one clones a release
+tag, not `main`, and the package fetches tables from the same tag. To cut the next one:
+
+1. Set `TAG` in `src/orteach/paths.py` and `REF` in every setup cell (the eleven seeds and the six
+   notebooks edited in place) to the new tag. `check_notebooks.py` refuses any setup cell that
+   disagrees with `TAG`.
+2. Re-execute, merge through a pull request with CI green.
+3. Tag the merge commit, annotated, and check it peels to that commit:
+   `git tag -a vX.Y.Z <sha> -m "..."`, `git push origin vX.Y.Z`,
+   `git ls-remote origin "refs/tags/vX.Y.Z^{}"`. No GitHub Release unless a Zenodo deposit is
+   wanted, which is Jones's decision.
 
 Every notebook has been read by a fresh-context reviewer against Parts 3, 4 and 10. The first nine
 reviews are folded into commit `9054550`, the probability pair into `3084cf3`, and `09`/`10`/`12`

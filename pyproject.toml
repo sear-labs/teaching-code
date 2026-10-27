@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orteach"
-version = "1.0.0"
+version = "1.0.1"
 description = "Teaching models for IE 3315, IE 5301 and REE 4301 — the package half of the notebook/package split"
 requires-python = ">=3.10,<3.14"
 

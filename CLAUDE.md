@@ -136,7 +136,7 @@ They belong with the repository. Moved twice so far: to `C:\dev\` on 2026-09-05,
 
 ## Status, measured 2026-09-05
 
-Nineteen notebooks (seventeen as of 2026-09-05) across twelve subjects (`02` empty on purpose), sixteen package modules, thirty-
+Twenty notebooks (seventeen as of 2026-09-05) across twelve subjects (`02` empty on purpose), sixteen package modules, thirty-
 odd tables in `data/raw/`, 170 tests, and `tools/check_notebooks.py`. README.md has the table.
 
 **What to run before believing anything:** `python -m pytest tests/ -q`,
@@ -175,5 +175,6 @@ with a status line per finding, and the list of what must change before the firs
 **Not done:** the 174 files the migration queue could not classify by name were only partly read;
 the ones that were (Pooling, Portfolio Selection, Gandhi Cloth, StochasticLP, the Monte Carlo set,
 the REE modules beyond M0) are either migrated or named in a folder README. Fixed-charge / logical
-constraints (`Gandhi_Cloth`, `Portfolio Selection`) would be a second `05` notebook; the two-stage
-server farm (`StochasticLP`, 14 copies) and the bakery VSS/EVPI example a second `07`.
+constraints (`Gandhi_Cloth`, `Portfolio Selection`) would be a second `05` notebook; the bakery
+VSS/EVPI example another `07`. The two-stage server farm is `07/server_farm.ipynb` (2026-10-27),
+from IE 5301's 2026 code, and `07/risk_measures.ipynb` adds VaR and CVaR.

@@ -133,8 +133,8 @@ caught by a printed number rather than by review or by the suite.
 
 ## Still open in this repository, beyond the closed queue
 
-- Second notebooks for `05` (Gandhi cloth fixed charge, Portfolio logic) and `07` (server-farm
-  two-stage LP, bakery VSS/EVPI).
+- Second notebooks for `05` (Gandhi cloth fixed charge, Portfolio logic) and `07` (bakery
+  VSS/EVPI). The server farm and VaR/CVaR landed in `07` on 2026-10-27.
 - Roughly 140 files in the original migration queue were never classified or read.
 - ~~`README.md` and `notebooks/12_energy_systems_pypsa/README.md` point at REE 4301 by its
   OneDrive path.~~ **Done.** Both carry the GitHub URL, and since 2026-09-13 it resolves for

@@ -1,0 +1,4 @@
+machine,purchase_cost,space,cloud_cost
+cpu,6,1,7
+gpu,14,5,18
+tpu,27,3,30

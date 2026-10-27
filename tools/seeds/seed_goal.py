@@ -23,7 +23,7 @@ An advertising agency has a contract to promote a product on radio and televisio
 reaches a known number of people, costs a known amount, and ties up a known amount of the agency's
 staff. There are ten person-minutes of staff time, and the contract caps radio at six minutes.
 
-Management has two targets: reach at least 45 million people, and spend no more than $100 thousand. Call
+Management has two targets: reach at least 45 million people, and spend no more than \$100 thousand. Call
 them **goals** rather than constraints, and check first whether any plan can meet both — a
 constraint that cannot be met makes the whole problem infeasible, and goal programming exists for
 that case: *by how little must each target be missed, in order of importance?*

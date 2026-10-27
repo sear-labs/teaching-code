@@ -140,7 +140,7 @@ for basis, x, ok, z in corners:
 
 md(r"""
 Enumerating is fine for six. With 50 variables and 30 constraints there are 80 columns and
-$inom{80}{30}$ choices, about $9 	imes 10^{21}$.
+$\binom{80}{30}$ choices, about $9 \times 10^{21}$.
 The simplex method visits a handful of them, always moving to a neighbour that is no worse.
 
 ## The tableau

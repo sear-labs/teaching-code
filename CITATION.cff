@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this teaching material, or the models in it, please cite it as below."
 title: "Teaching notebooks for IE 3315, IE 5301 and REE 4301"
 abstract: >-
-  Eighteen executed teaching notebooks and an accompanying Python package,
+  Nineteen executed teaching notebooks and an accompanying Python package,
   organised by subject across three courses in industrial engineering and energy
   systems modelling. Each notebook builds its model by hand and then asserts
   agreement with the packaged implementation, so the two cannot drift apart

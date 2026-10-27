@@ -125,13 +125,14 @@ ahead of LP formulation, which is backwards.
 
 ## What is here, measured 2026-09-05
 
-Twenty teaching notebooks in twelve subjects, each with its package module, its tables and its
-tests. `02_simplex_and_bases` is empty on purpose. Every notebook ships executed, ends in the
+Twenty-two teaching notebooks in thirteen subjects, each with its package module, its tables and
+its tests. Every notebook ships executed, ends in the
 agreement assertion, and passes `tools/check_notebooks.py`.
 
 | folder | notebooks | package |
 |---|---|---|
 | 01 | `diet`, `goal_programming` | `diet`, `goal_programming` |
+| 02 | `simplex_by_hand`, `interior_point` | `simplex` |
 | 03 | `primal_and_dual` | `duality` |
 | 04 | `transportation`, `assignment` | `transportation`, `assignment` |
 | 05 | `facility_location` | `facility_location` |

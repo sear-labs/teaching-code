@@ -1,0 +1,5 @@
+row,x1,x2,sense,rhs
+objective,3,5,max,
+plant1,1,0,<=,4
+plant2,0,2,<=,12
+plant3,3,2,<=,18

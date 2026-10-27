@@ -136,7 +136,7 @@ They belong with the repository. Moved twice so far: to `C:\dev\` on 2026-09-05,
 
 ## Status, measured 2026-09-05
 
-Twenty notebooks (seventeen as of 2026-09-05) across twelve subjects (`02` empty on purpose), sixteen package modules, thirty-
+Twenty-two notebooks (seventeen as of 2026-09-05) across thirteen subjects (`02` added 2026-10-27), sixteen package modules, thirty-
 odd tables in `data/raw/`, 170 tests, and `tools/check_notebooks.py`. README.md has the table.
 
 **What to run before believing anything:** `python -m pytest tests/ -q`,

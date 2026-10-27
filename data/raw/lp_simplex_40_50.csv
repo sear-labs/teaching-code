@@ -1,0 +1,4 @@
+row,x1,x2,sense,rhs
+objective,40,50,max,
+c1,1,2,<=,40
+c2,4,3,<=,120

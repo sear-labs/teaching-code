@@ -87,3 +87,36 @@ def test_column_optimum_is_a_segment(game, col):
     for d in (0.0, 0.0625, 0.125):
         q = {"c1": 0.0, "c2": 0.5 - 4 * d, "c3": 0.5 + 3 * d, "c4": d}
         assert games.worst_case(game, q, "column") <= col.value + FEASIBILITY_ATOL
+
+
+# ---------------------------------------------------- saddle_points.ipynb (2026-10-27)
+
+def test_the_coin_game_is_a_fair_coin_and_worth_nothing():
+    g = games.load_game("coin_2x2.csv")
+    r = games.solve_row(g)
+    assert not games.has_saddle_point(g)
+    assert abs(r.value) < FEASIBILITY_ATOL
+    assert all(abs(p - 0.5) < FEASIBILITY_ATOL for p in r.probs.values())
+
+
+def test_the_advertising_game_has_its_saddle_point_at_tv_against_tv():
+    g = games.load_game("flu_advertising_3x4.csv")
+    assert games.has_saddle_point(g)
+    assert games.maximin(g) == (5.0, "A2") and games.minimax(g) == (5.0, "B2")
+    r, c = games.solve_row(g), games.solve_column(g)
+    assert rel_diff(r.value, 5.0) < AGREEMENT_RTOL and rel_diff(c.value, 5.0) < AGREEMENT_RTOL
+    assert r.support() == ["A2"] and c.support() == ["B2"]
+
+
+def test_one_changed_entry_removes_the_saddle_point_and_the_value_is_42_over_17():
+    g = games.load_game("flu_advertising_3x4.csv")
+    g.payoff["A2", "B2"] = 2.0
+    assert not games.has_saddle_point(g)
+    lo, hi = games.maximin(g)[0], games.minimax(g)[0]
+    r, c = games.solve_row(g), games.solve_column(g)
+    assert lo < r.value < hi
+    assert rel_diff(r.value, 42 / 17) < AGREEMENT_RTOL and rel_diff(c.value, 42 / 17) < AGREEMENT_RTOL
+    for k, want in {"A1": 0.0, "A2": 13 / 17, "A3": 4 / 17}.items():
+        assert abs(r.probs[k] - want) < FEASIBILITY_ATOL, (k, r.probs[k])
+    for k, want in {"B1": 0.0, "B2": 15 / 17, "B3": 2 / 17, "B4": 0.0}.items():
+        assert abs(c.probs[k] - want) < FEASIBILITY_ATOL, (k, c.probs[k])

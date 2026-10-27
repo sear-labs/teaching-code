@@ -1,0 +1,3 @@
+row,heads,tails
+heads,1,-1
+tails,-1,1

@@ -31,15 +31,13 @@ point at, which is why the source had it and why it stays.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass, field
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -55,11 +53,11 @@ class Instance:
 
 
 def load_ufl() -> Instance:
-    with open(os.path.join(DATA_DIR, "ufl_warehouses.csv"), encoding="utf-8") as f:
+    with open(paths.table("ufl_warehouses.csv"), encoding="utf-8") as f:
         wrows = list(csv.DictReader(f))
-    with open(os.path.join(DATA_DIR, "ufl_demand.csv"), encoding="utf-8") as f:
+    with open(paths.table("ufl_demand.csv"), encoding="utf-8") as f:
         drows = list(csv.DictReader(f))
-    with open(os.path.join(DATA_DIR, "ufl_shipping_cost.csv"), encoding="utf-8") as f:
+    with open(paths.table("ufl_shipping_cost.csv"), encoding="utf-8") as f:
         srows = list(csv.DictReader(f))
     return Instance(
         warehouses=[r["Warehouse"] for r in wrows],

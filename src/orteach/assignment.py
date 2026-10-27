@@ -17,7 +17,6 @@ is a statement about the structure and not about the solver.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import gurobipy as gp
@@ -25,12 +24,12 @@ import gurobipy as gp
 from . import tolerance
 from .transportation import Instance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
-def load_costs(path=os.path.join(DATA_DIR, "assignment_4x4.csv")) -> dict:
+def load_costs(path=None) -> dict:
     """(machine, job) -> cost, keys as strings so they match the CSV verbatim."""
+    path = path or paths.table("assignment_4x4.csv")
     with open(path, encoding="utf-8") as f:
         return {(r["machine"], r["job"]): float(r["cost"]) for r in csv.DictReader(f)}
 

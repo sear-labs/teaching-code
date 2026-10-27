@@ -19,15 +19,13 @@ cap is a knob.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass, field
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -46,7 +44,7 @@ class Instance:
 
 def load_sourcing() -> Instance:
     def rows(name):
-        with open(os.path.join(DATA_DIR, name), encoding="utf-8") as f:
+        with open(paths.table(name), encoding="utf-8") as f:
             return list(csv.DictReader(f))
     routes = rows("sourcing_routes.csv")
     return Instance(

@@ -16,15 +16,13 @@ strategy for the column player, which the teaching notebook in
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -37,7 +35,7 @@ class Game:
 
 def load_game(filename: str) -> Game:
     """Matrix layout: first column names the row, header names the columns."""
-    with open(os.path.join(DATA_DIR, filename), encoding="utf-8") as f:
+    with open(paths.table(filename), encoding="utf-8") as f:
         recs = list(csv.DictReader(f))
     cols = [k for k in recs[0].keys() if k != "row"]
     rows = [r["row"] for r in recs]

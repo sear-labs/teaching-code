@@ -29,15 +29,13 @@ building the dual as its own LP and solving both.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 SENSES = ("<=", ">=", "=")
 
@@ -62,7 +60,7 @@ class LP:
 
 
 def load_lp(filename: str, name: str = "") -> LP:
-    with open(os.path.join(DATA_DIR, filename), encoding="utf-8") as f:
+    with open(paths.table(filename), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     cols = list(rows[0].keys())
     variables = cols[1:cols.index("sense")]

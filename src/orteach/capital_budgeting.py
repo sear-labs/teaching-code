@@ -25,25 +25,24 @@ The gap between them is what indivisibility costs.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass, field
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
-INVESTMENTS_CSV = os.path.join(DATA_DIR, "staroil_investments.csv")
+from . import paths
+INVESTMENTS_CSV = "staroil_investments.csv"   # resolved by paths.table() when read
 
 
-def load_investments(path=INVESTMENTS_CSV):
+def load_investments(path=None):
     """Read the investment table as a list of dicts, in file order.
 
     Returned to the caller, who passes it into the solvers — the solvers never
     read the file themselves, so a reader who edits a value in the notebook sees
     it reach both the hand-built model and the check.
     """
+    path = path or paths.table(INVESTMENTS_CSV)
     with open(path, encoding="utf-8") as f:
         return [{"investment": r["investment"],
                  "npv": float(r["npv"]),

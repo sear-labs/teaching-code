@@ -154,9 +154,15 @@ with a status line per finding, and the list of what must change before the firs
 
 **Conventions this library settled, beyond the standard:**
 
-- Every notebook opens with the same setup cell (`REPO_URL`, clone-or-`../../src`) and, when it
+- Every notebook opens with the same setup cell (`REPO_URL`, `REF`, clone-or-`../../src`) and, when it
   solves, the same licence cell (silent `gp.Env`, Colab Secrets, `NotebookAccessError` caught).
-  Patch them everywhere or nowhere.
+  Patch them everywhere or nowhere. `REF` is the release tag Colab clones and must equal
+  `orteach.paths.TAG`, the tag the package fetches tables from; the checker enforces it, and
+  README "Cutting a release" has the steps.
+- Instance tables are found only through `orteach.paths.table()`. Never build a path to
+  `data/raw` from `__file__` in a module: it is right in a clone and wrong after `pip install`.
+- A cell that draws a figure also prints a `Figure:` line saying what it shows, computed from the
+  same data. The checker enforces it.
 - Tolerances are named in `orteach.tolerance` and nowhere else; every hand-built Gurobi model calls
   `tolerance.apply(m)`.
 - When an optimum is not unique, the agreement assertion compares what every optimum shares and the

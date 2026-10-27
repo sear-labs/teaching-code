@@ -29,10 +29,9 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import stats
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
-SCORES_CSV = os.path.join(DATA_DIR, "exam_scores.csv")
+SCORES_CSV = "exam_scores.csv"   # resolved by paths.table() when read
 SCORES_SEED = 20260905
 SCORES_N = 22
 SCORES_SHAPE = {"exam1": (75.0, 22.0, 100.0), "exam2": (70.0, 27.0, 105.0)}   # mean, sd, cap
@@ -51,7 +50,8 @@ def generate_scores(seed: int = SCORES_SEED, n: int = SCORES_N) -> dict:
     return out
 
 
-def write_scores(path: str = SCORES_CSV) -> None:
+def write_scores(path: str | None = None) -> None:
+    path = path or os.path.join(paths.SOURCE_DIR, SCORES_CSV)   # writes the clone's own table
     scores = generate_scores()
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -60,7 +60,8 @@ def write_scores(path: str = SCORES_CSV) -> None:
             w.writerow([i + 1, scores["exam1"][i], scores["exam2"][i]])
 
 
-def load_scores(path: str = SCORES_CSV) -> dict:
+def load_scores(path: str | None = None) -> dict:
+    path = path or paths.table(SCORES_CSV)
     with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return {"exam1": [float(r["exam1"]) for r in rows], "exam2": [float(r["exam2"]) for r in rows]}
@@ -68,7 +69,7 @@ def load_scores(path: str = SCORES_CSV) -> dict:
 
 def load_table(filename: str) -> dict:
     """A CSV as {column: list}, numeric where every entry parses."""
-    with open(os.path.join(DATA_DIR, filename), encoding="utf-8") as f:
+    with open(paths.table(filename), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     out = {}
     for col in rows[0].keys():

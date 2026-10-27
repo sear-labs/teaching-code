@@ -19,15 +19,13 @@ reproduce that answer on purpose and show what it costs.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -42,9 +40,9 @@ class Instance:
 
 def load_diet(stem: str) -> Instance:
     """``stem`` is ``"macros"`` or ``"vitamins"``: the prefix of the CSV pair."""
-    with open(os.path.join(DATA_DIR, "diet_%s_foods.csv" % stem), encoding="utf-8") as f:
+    with open(paths.table("diet_%s_foods.csv" % stem), encoding="utf-8") as f:
         frows = list(csv.DictReader(f))
-    with open(os.path.join(DATA_DIR, "diet_%s_targets.csv" % stem), encoding="utf-8") as f:
+    with open(paths.table("diet_%s_targets.csv" % stem), encoding="utf-8") as f:
         trows = list(csv.DictReader(f))
     nutrients = [r["nutrient"] for r in trows]
     return Instance(

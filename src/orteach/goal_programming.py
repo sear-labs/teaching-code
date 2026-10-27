@@ -27,15 +27,13 @@ method, which trades goals off at fixed weights instead of ranking them.
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass, field
 
 import gurobipy as gp
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
+from . import paths
 
 
 @dataclass
@@ -54,7 +52,7 @@ class Instance:
 def load_topad(labor_cap=10.0, radio_cap=6.0, exposure_goal=45.0, budget=100.0) -> Instance:
     """The table comes from the file; the four scalars are knobs the caller
     names, so the notebook can hand them over explicitly."""
-    with open(os.path.join(DATA_DIR, "topad_media.csv"), encoding="utf-8") as f:
+    with open(paths.table("topad_media.csv"), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return Instance(
         media=[r["medium"] for r in rows],

@@ -17,9 +17,8 @@ from __future__ import annotations
 import csv
 import os
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
-DEMAND_CSV = os.path.join(DATA_DIR, "newsvendor_demand.csv")
+from . import paths
+DEMAND_CSV = "newsvendor_demand.csv"   # resolved by paths.table() when read
 
 # The generating parameters, recorded so the table can be rebuilt exactly.
 # Truncated at zero: demand cannot be negative.
@@ -40,9 +39,10 @@ def generate_demand(n=DEMAND_N, mu=DEMAND_MU, sigma=DEMAND_SIGMA, seed=DEMAND_SE
     return [round(max(rng.normalvariate(mu, sigma), 0.0), 6) for _ in range(n)]
 
 
-def write_demand(path=DEMAND_CSV):
+def write_demand(path=None):
     """Write the table. The script is the source of truth; the CSV is a build
     output, and ``tests/test_newsvendor.py::test_the_demand_table_regenerates_exactly`` checks that regenerating reproduces it."""
+    path = path or os.path.join(paths.SOURCE_DIR, DEMAND_CSV)   # writes the clone's own table
     rows = generate_demand()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -53,9 +53,10 @@ def write_demand(path=DEMAND_CSV):
     return path
 
 
-def load_demand(path=DEMAND_CSV):
+def load_demand(path=None):
     """Read the demand table. Both the notebook and the package call this, and
     then pass the RESULT into the solvers — the solvers never read the file."""
+    path = path or paths.table(DEMAND_CSV)
     with open(path, encoding="utf-8") as f:
         return [float(r["demand"]) for r in csv.DictReader(f)]
 

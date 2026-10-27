@@ -31,10 +31,9 @@ import numpy as np
 
 from . import tolerance
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "raw")
-PROFILES_CSV = os.path.join(DATA_DIR, "energy_day_profiles.csv")
-GENERATORS_CSV = os.path.join(DATA_DIR, "energy_generators.csv")
+from . import paths
+PROFILES_CSV = "energy_day_profiles.csv"   # resolved by paths.table() when read
+GENERATORS_CSV = "energy_generators.csv"   # resolved by paths.table() when read
 
 HOURS = np.arange(24)
 DAYS_PER_YEAR = 365.0
@@ -55,7 +54,8 @@ def day_profiles(peak_hour: int = 19) -> dict:
             "solar_pu": [round(float(s), 4) for s in solar]}
 
 
-def write_day_profiles(path: str = PROFILES_CSV) -> None:
+def write_day_profiles(path: str | None = None) -> None:
+    path = path or os.path.join(paths.SOURCE_DIR, PROFILES_CSV)   # writes the clone's own table
     p = day_profiles()
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -64,7 +64,8 @@ def write_day_profiles(path: str = PROFILES_CSV) -> None:
             w.writerow([h, d, s])
 
 
-def load_day_profiles(path: str = PROFILES_CSV) -> dict:
+def load_day_profiles(path: str | None = None) -> dict:
+    path = path or paths.table(PROFILES_CSV)
     with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return {"hour": [int(r["hour"]) for r in rows],
@@ -82,7 +83,8 @@ class Technology:
     varies: bool                    # follows the solar profile
 
 
-def load_generators(path: str = GENERATORS_CSV) -> list:
+def load_generators(path: str | None = None) -> list:
+    path = path or paths.table(GENERATORS_CSV)
     with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return [Technology(r["technology"], float(r["p_nom_mw"]), float(r["marginal_cost"]),

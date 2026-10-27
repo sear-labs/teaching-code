@@ -28,6 +28,11 @@ Checks, per notebook:
                         in the prose came from that run)
     setup cell          the Colab setup cell names this notebook's own folder
     licence id          no Gurobi licence banner in any output
+    figure text         every cell that outputs an image also prints a line starting
+                        "Figure:" saying what the image SHOWS - its text alternative,
+                        written in the same cell as the plot (standard Part 3, accessible)
+    setup cell tag      the setup cell clones orteach.paths.TAG, the same release the
+                        package fetches tables from
 """
 from __future__ import annotations
 
@@ -55,6 +60,11 @@ PROSE_NUM_RE = re.compile(r"(?<![\w.\-])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+)(
 CODE_SPAN_RE = re.compile(r"`[^`]*`|\$\$.*?\$\$|\$[^$\n]*\$", re.S)
 EXERCISES_RE = re.compile(r"^#+\s*where to take this next.*", re.I | re.M | re.S)
 LICENCE_RE = re.compile(r"LicenseID to value|Academic license|Restricted license")
+# The release the package fetches tables from, read from source (not imported). The setup cell
+# must clone the same one, or Colab runs this notebook against tables from another release.
+_TAG_M = re.search(r'^TAG = "([^"]+)"', (ROOT / "src" / "orteach" / "paths.py").read_text(encoding="utf-8"), re.M)
+assert _TAG_M, "no TAG = ... in src/orteach/paths.py"
+PACKAGE_TAG = _TAG_M.group(1)
 
 
 def _numbers_in_prose(md_text: str) -> list[str]:
@@ -100,6 +110,15 @@ def check(path: Path) -> list[str]:
     outputs = "\n".join(out_text)
     if LICENCE_RE.search(outputs):
         fails.append("a Gurobi licence banner is in the outputs")
+
+    # every image has a text alternative in its own cell (a requirement in prose has already failed)
+    def _cell_text(c):
+        return "".join("".join(o.get("text", "")) for o in c.get("outputs", []))
+    no_alt = [i for i, c in enumerate(cells) if c.get("cell_type") == "code"
+              and any("image/png" in o.get("data", {}) for o in c.get("outputs", []))
+              and not any(line.startswith("Figure: ") for line in _cell_text(c).splitlines())]
+    if no_alt:
+        fails.append("%d figure cell(s) print no 'Figure:' text alternative: cells %s" % (len(no_alt), no_alt[:6]))
 
     # orphans
     orphans = [i for i, c in enumerate(cells)
@@ -169,6 +188,10 @@ def check(path: Path) -> list[str]:
         fails.append("no Colab setup cell (REPO_URL)")
     elif ("notebooks/%s" % folder) not in src(setup[0]):
         fails.append("setup cell does not chdir to notebooks/%s" % folder)
+    if setup and ('REF = "%s"' % PACKAGE_TAG) not in src(setup[0]):
+        fails.append("setup cell does not clone REF = %r, the release orteach.paths.TAG names" % PACKAGE_TAG)
+    if setup and '"--branch", REF' not in src(setup[0]):
+        fails.append("setup cell clones without --branch REF, so Colab gets main, not the release")
 
     return fails
 

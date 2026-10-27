@@ -40,6 +40,7 @@ code(r'''
 import os, subprocess, sys
 
 REPO_URL = "https://github.com/sear-labs/teaching-code"
+REF = "v1.0.0"                               # the release this notebook ships in: Colab clones THIS
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab
@@ -49,7 +50,7 @@ except ImportError:
 
 if ON_COLAB:
     if not os.path.isdir("/content/teaching-code"):
-        subprocess.run(["git", "clone", "--quiet", REPO_URL, "/content/teaching-code"], check=True)
+        subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", REF, REPO_URL, "/content/teaching-code"], check=True)
     os.chdir("/content/teaching-code/notebooks/14_probability_and_stats")
     subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "gurobipy>=11,<14"], check=True)
 

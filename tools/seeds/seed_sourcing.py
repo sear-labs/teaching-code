@@ -228,7 +228,7 @@ print(f"China capacity {cap + 1:6.0f} kt   ${neighbour[+1.0]:>10,.2f}")
 md(r"""
 The zero describes one side only. A shadow price is a derivative, and here the cost has a **kink**:
 upward it is flat, because there is nothing left that is worth refining once demand is met; downward
-it is $3 a kilotonne, because the ore displaced has to travel a dearer route. The solver reported the
+it is \$3 a kilotonne, because the ore displaced has to travel a dearer route. The solver reported the
 right-hand slope. A different solver, or the same one with a different method, may report the left —
 both are correct, and neither is *the* shadow price, because at a kink there isn't one.
 
@@ -395,7 +395,7 @@ md(r"""
 
 - Put the share cap on the *processors* instead of the mines. Which cap is more expensive to satisfy,
   and what does that say about where the bottleneck in this industry sits?
-- The domestic mine ships to China at $8.0/kt and to the domestic processor at $3.0. Find the ore
+- The domestic mine ships to China at \$8.0/kt and to the domestic processor at \$3.0. Find the ore
   tariff at which it enters the uncapped solution on price alone — without re-solving, from the
   reduced costs.
 - The middle-layer structure above — the balance row saying a processor cannot ship what it did not

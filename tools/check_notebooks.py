@@ -33,6 +33,11 @@ Checks, per notebook:
                         written in the same cell as the plot (standard Part 3, accessible)
     setup cell tag      the setup cell clones orteach.paths.TAG, the same release the
                         package fetches tables from
+    control characters  none in any cell source, and no tab in markdown: the trace of
+                        a "\\b" or "\\t" a seed's string ate ("$\\binom" became
+                        backspace + "inom")
+    currency dollars    a price in markdown is written "\\$22.14", not "$22.14": two on
+                        one line, or one beside real math, pair up and render as LaTeX
 """
 from __future__ import annotations
 
@@ -60,6 +65,14 @@ PROSE_NUM_RE = re.compile(r"(?<![\w.\-])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+)(
 CODE_SPAN_RE = re.compile(r"`[^`]*`|\$\$.*?\$\$|\$[^$\n]*\$", re.S)
 EXERCISES_RE = re.compile(r"^#+\s*where to take this next.*", re.I | re.M | re.S)
 LICENCE_RE = re.compile(r"LicenseID to value|Academic license|Restricted license")
+CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+# An unescaped "$" opening a number that reads as money: the number ends the line, or is
+# followed by punctuation and a space, by a word ("$3 a kilotonne"), or by a per-unit slash
+# ("$0.00 /MWh", "$8.0/kt"). Math such as "$2 \times 2$", "$1/\sqrt{n}$", "$1/n$", "$40x_1$"
+# or "$0.02$" continues with a backslash, an operator, a letter glued on, a one-letter
+# denominator, or the closing "$".
+CURRENCY_RE = re.compile(r"(?<!\\)\$(\d[\d,]*(?:\.\d+)?)"
+                         r"(?=$|[.,;:!?)](?:\s|$)|\s+[A-Za-z]|\s*/\s*[A-Za-z]{2})", re.M)
 # The release the package fetches tables from, read from source (not imported). The setup cell
 # must clone the same one, or Colab runs this notebook against tables from another release.
 _TAG_M = re.search(r'^TAG = "([^"]+)"', (ROOT / "src" / "orteach" / "paths.py").read_text(encoding="utf-8"), re.M)
@@ -192,6 +205,16 @@ def check(path: Path) -> list[str]:
         fails.append("setup cell does not clone REF = %r, the release orteach.paths.TAG names" % PACKAGE_TAG)
     if setup and '"--branch", REF' not in src(setup[0]):
         fails.append("setup cell clones without --branch REF, so Colab gets main, not the release")
+
+    # no character a string escape ate, and no price that renders as math
+    bad = [i for i, c in enumerate(cells) if CONTROL_RE.search(src(c))
+           or (c.get("cell_type") == "markdown" and "\t" in src(c))]
+    if bad:
+        fails.append("control character (an eaten \\b or \\t?) in cell(s) %s" % bad)
+    prices = sorted({m.group(0) for m in CURRENCY_RE.finditer(all_md)})
+    if prices:
+        fails.append("unescaped price(s) in markdown; write \\$ so they don't pair as LaTeX: %s"
+                     % prices[:8])
 
     return fails
 

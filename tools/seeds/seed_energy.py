@@ -120,8 +120,8 @@ One hour. One place. **100 MW** is needed. Two things can supply it:
 
 | technology | available this hour | cost to run |
 |---|---|---|
-| solar | 40 MW | $0.00 /MWh |
-| gas | 500 MW | $22.14 /MWh |
+| solar | 40 MW | \$0.00 /MWh |
+| gas | 500 MW | \$22.14 /MWh |
 
 **Solve it before you run anything below**: which do you run, how much of each, and what does the
 hour cost? Then write it as a linear program — one variable per technology, a balance row, a
@@ -339,7 +339,7 @@ print(table.to_string())
 md(r"""
 Read the table before moving on. The battery column is negative when it charges. Find the hours it
 charges in and what the price is then; the hours it discharges into; and the one hour the peaker
-runs. Then look at the price in hour 18, and in hours 20 to 22: each is above gas's $22.14, and the
+runs. Then look at the price in hour 18, and in hours 20 to 22: each is above gas's \$22.14, and the
 only thing in this system that costs more than gas to run is the peaker, which is off in all four.
 What is setting the price there?
 """)
@@ -460,7 +460,7 @@ md(r"""
 ## The envelope calculation, and where it goes wrong
 
 Work out by hand why the model would not touch free fuel: one MW of solar makes so many MWh a day,
-each displacing gas at $22.14, and that is worth so much a year. Compare it with the capital cost the
+each displacing gas at \$22.14, and that is worth so much a year. Compare it with the capital cost the
 table charges.
 """)
 code(r'''
@@ -667,7 +667,7 @@ Move the sliders, then press **Run Interact**.
 > **2.** Cut solar to 60 MW. Does the battery still charge at midday? Where does its energy come
 > from now, and what does that do to the evening prices?
 >
-> **3.** Raise the peaker's cost to $300. Predict first: does the schedule change, the prices, the
+> **3.** Raise the peaker's cost to \$300. Predict first: does the schedule change, the prices, the
 > day cost, or all three?
 """)
 code(r'''
@@ -762,13 +762,13 @@ md(r"""
 
 ## Where to take this next
 
-- Add a coal plant — 200 MW available at $19.90/MWh — to *both* one-hour models, and confirm they
+- Add a coal plant — 200 MW available at \$19.90/MWh — to *both* one-hour models, and confirm they
   still agree. Predict, before running, whether the marginal price goes up or down, and why.
 - Set the battery's power to zero in the day model and re-solve. How much of the day's cost was the
   battery saving, and in which hours?
 - Repeat the capital-cost sweep for the peaker instead of solar. Does the model value it above or
   below its energy displacement, and why is the answer the opposite sign to solar's?
-- Cap solar's build at 50 MW and re-run the sweep at $60,000/yr. The model builds all 50. Which is
+- Cap solar's build at 50 MW and re-run the sweep at \$60,000/yr. The model builds all 50. Which is
   binding — the cap or the price — and how would you tell?
 """)
 

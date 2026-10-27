@@ -125,7 +125,7 @@ ahead of LP formulation, which is backwards.
 
 ## What is here, measured 2026-09-05
 
-Nineteen teaching notebooks in twelve subjects, each with its package module, its tables and its
+Twenty teaching notebooks in twelve subjects, each with its package module, its tables and its
 tests. `02_simplex_and_bases` is empty on purpose. Every notebook ships executed, ends in the
 agreement assertion, and passes `tools/check_notebooks.py`.
 
@@ -136,7 +136,7 @@ agreement assertion, and passes `tools/check_notebooks.py`.
 | 04 | `transportation`, `assignment` | `transportation`, `assignment` |
 | 05 | `facility_location` | `facility_location` |
 | 06 | `curve_fit_lifting`, `pooling` | `nonconvex` |
-| 07 | `newsvendor`, `risk_measures` | `newsvendor`, `data` |
+| 07 | `newsvendor`, `risk_measures`, `server_farm` | `newsvendor`, `data`, `serverfarm` |
 | 08 | `monte_carlo` | `montecarlo` |
 | 09 | `markov_and_queues` | `markov`, `queueing` |
 | 10 | `zero_sum_game`, `saddle_points` | `games` |

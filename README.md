@@ -200,9 +200,9 @@ To re-execute a notebook: `jupyter nbconvert --to notebook --execute --inplace <
 A notebook handed to students must not change under them, so on Colab each one clones a release
 tag, not `main`, and the package fetches tables from the same tag. To cut the next one:
 
-1. Set `TAG` in `src/orteach/paths.py` and `REF` in every setup cell (the eleven seeds and the six
+1. Set `TAG` in `src/orteach/paths.py`, `version` in `pyproject.toml`, and `REF` in every setup cell (the eleven seeds and the six
    notebooks edited in place) to the new tag. `check_notebooks.py` refuses any setup cell that
-   disagrees with `TAG`.
+   disagrees with `TAG`, and `tests/test_paths.py` refuses a package version that does.
 2. Re-execute, merge through a pull request with CI green.
 3. Tag the merge commit, annotated, and check it peels to that commit:
    `git tag -a vX.Y.Z <sha> -m "..."`, `git push origin vX.Y.Z`,

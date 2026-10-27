@@ -9,6 +9,11 @@ import sys
 
 import pytest
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:                                          # declared in dev for 3.10; never skipped
+    import tomli as tomllib
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
@@ -71,3 +76,11 @@ def test_without_a_local_copy_it_fetches_the_tagged_file_once(tmp_path, monkeypa
 def test_the_url_names_the_release_tag_not_a_branch():
     assert "/%s/data/raw/" % paths.TAG in paths.RAW_URL
     assert "/main/" not in paths.RAW_URL and paths.TAG.startswith("v")
+
+
+def test_the_package_version_is_the_tag_the_notebooks_clone():
+    """A release is one number: the version pip reports and the tag Colab clones must agree."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "pyproject.toml"), "rb") as f:
+        version = tomllib.load(f)["project"]["version"]
+    assert "v" + version == paths.TAG, (version, paths.TAG)

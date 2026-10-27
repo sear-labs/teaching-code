@@ -29,7 +29,7 @@ from __future__ import annotations
 import os
 import urllib.request
 
-TAG = "v1.0.0"
+TAG = "v1.0.1"
 REPO = "sear-labs/teaching-code"
 RAW_URL = "https://raw.githubusercontent.com/%s/%s/data/raw/" % (REPO, TAG)
 ENV = "ORTEACH_DATA"

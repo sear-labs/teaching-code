@@ -41,7 +41,7 @@ code(r'''
 import os, subprocess, sys
 
 REPO_URL = "https://github.com/sear-labs/teaching-code"
-REF = "v1.0.0"                               # the release this notebook ships in: Colab clones THIS
+REF = "v1.0.1"                               # the release this notebook ships in: Colab clones THIS
 
 try:
     import google.colab                      # noqa: F401 - succeeds only on Colab

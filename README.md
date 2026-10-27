@@ -15,8 +15,18 @@ agreeing. The defect each migration fixed is recorded in `git log`.
 
 ## How to cite
 
-Licensed **MIT** — see [`LICENSE`](LICENSE). A licence sets the terms of reuse and does *not*
-get the work cited; those are two mechanisms, so this repo carries both.
+Two licences, by path, because MIT speaks about software and says nothing about data or prose:
+
+| what | licence |
+|---|---|
+| code: `src/`, `tests/`, `tools/`, and the code cells of `notebooks/` | **MIT**, see [`LICENSE`](LICENSE) |
+| instance tables in `data/raw/`, committed figures and outputs, and the notebooks' prose | **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**: reuse freely, with attribution |
+
+Some tables reproduce published textbook instances (each notebook names its source). CC BY covers
+what this repository adds, not the original publisher's rights.
+
+A licence sets the terms of reuse and does *not* get the work cited; those are two mechanisms, so
+this repo carries both.
 [`CITATION.cff`](CITATION.cff) drives GitHub's **"Cite this repository"** button, which is
 the point: people cite what is easy to cite, and friction is what stops them.
 
@@ -26,7 +36,7 @@ the point: people cite what is easy to cite, and friction is what stops them.
   title   = {Teaching notebooks for IE 3315, IE 5301 and REE 4301},
   year    = {2026},
   url     = {https://github.com/sear-labs/teaching-code},
-  license = {MIT}
+  license = {MIT (code), CC-BY-4.0 (data and prose)}
 }
 ```
 

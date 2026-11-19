@@ -109,12 +109,15 @@ ALPHA = 0.05         # false-alarm rate of each test
 TARGET = 0.80        # power wanted at DELTA
 PLAN_CONF = 0.80     # plan with a sigma the true noise exceeds only 20% of the time
 
+# Load the table and split it: the 32 corner runs, and the 4 runs at the center
 runs = doe.load_reactor()
-corner = np.array(runs["kind"]) == "factorial"
-X = np.column_stack([np.array(runs[f])[corner] for f in "ABCDE"]).astype(float)
-y = np.array(runs["yield"])[corner]
-y_center = np.array(runs["yield"])[~corner]
-run_order = np.array(runs["run_order"])[corner]
+is_corner = np.array(runs["kind"]) == "factorial"
+all_yields = np.array(runs["yield"])
+
+X = np.column_stack([np.array(runs[f])[is_corner] for f in "ABCDE"]).astype(float)   # one row per corner run
+y = all_yields[is_corner]                    # yield at each corner, in standard order
+y_center = all_yields[~is_corner]            # yield at the four center runs
+run_order = np.array(runs["run_order"])[is_corner]   # the order the corners were actually made in
 print(f"{len(y)} corner runs, {len(y_center)} center runs; factors {doe.FACTOR_NAMES}")
 print(f"planning for an effect of {DELTA} yield points, alpha {ALPHA}, power {TARGET}")
 ''')
@@ -150,15 +153,22 @@ Predict before you run it: from four replicates, how wide do you expect the 95% 
 $\sigma$ to be, as a multiple of $s$?
 """)
 code(r'''
-n_c = len(y_center)
-df_pure = n_c - 1
-s = y_center.std(ddof=1)
-sig_lo = s * np.sqrt(df_pure / stats.chi2.ppf(0.975, df_pure))
-sig_hi = s * np.sqrt(df_pure / stats.chi2.ppf(0.025, df_pure))
-sigma_plan = s * np.sqrt(df_pure / stats.chi2.ppf(1 - PLAN_CONF, df_pure))
+# The noise estimate from the center replicates
+n_center = len(y_center)
+df_center = n_center - 1                     # degrees of freedom of the estimate
+s = y_center.std(ddof=1)                     # sample standard deviation
+
+# 95% interval for the true sigma, from the chi-square distribution
+sigma_low = s * np.sqrt(df_center / stats.chi2.ppf(0.975, df_center))
+sigma_high = s * np.sqrt(df_center / stats.chi2.ppf(0.025, df_center))
+
+# The planning value: an upper bound the true sigma exceeds only 20% of the time
+sigma_plan = s * np.sqrt(df_center / stats.chi2.ppf(1 - PLAN_CONF, df_center))
+
 print("center runs:", y_center.tolist())
-print(f"s = {s:.3f} on {df_pure} degrees of freedom")
-print(f"95% interval for sigma: {sig_lo:.3f} to {sig_hi:.3f}  (from {sig_lo / s:.2f} s to {sig_hi / s:.2f} s)")
+print(f"s = {s:.3f} on {df_center} degrees of freedom")
+print(f"95% interval for sigma: {sigma_low:.3f} to {sigma_high:.3f}  "
+      f"(from {sigma_low / s:.2f} s to {sigma_high / s:.2f} s)")
 print(f"planning value, the {PLAN_CONF:.0%} upper bound: sigma_plan = {sigma_plan:.3f}")
 ''')
 
@@ -167,18 +177,29 @@ The upper end of that interval is several times $s$. How many replicates does it
 interval is tight? The bounds depend only on $n$, so they can be drawn once for every experiment.
 """)
 code(r'''
-ns = np.arange(2, 31)
-hi_ratio = np.sqrt((ns - 1) / stats.chi2.ppf(0.025, ns - 1))
-lo_ratio = np.sqrt((ns - 1) / stats.chi2.ppf(0.975, ns - 1))
+# The interval's ends as multiples of s, for every number of replicates from 2 to 30
+n_reps = np.arange(2, 31)
+low_ratio = np.sqrt((n_reps - 1) / stats.chi2.ppf(0.975, n_reps - 1))
+high_ratio = np.sqrt((n_reps - 1) / stats.chi2.ppf(0.025, n_reps - 1))
+
 fig, ax = plt.subplots(figsize=(7, 3.8))
-ax.fill_between(ns, lo_ratio, hi_ratio, color="tab:blue", alpha=0.25, label="95% interval for sigma, in units of s")
+ax.fill_between(n_reps, low_ratio, high_ratio, color="tab:blue", alpha=0.25,
+                label="95% interval for sigma, in units of s")
 ax.axhline(1, color="black", lw=0.8)
-ax.axvline(n_c, color="tab:orange", ls="--", label=f"this pilot: {n_c} replicates")
-ax.set_yscale("log"); ax.set_ylim(0.4, 20); ax.set_xlabel("number of replicates n"); ax.set_ylabel("bound / s")
-ax.legend(); plt.tight_layout(); plt.show()
+ax.axvline(n_center, color="tab:orange", ls="--", label=f"this pilot: {n_center} replicates")
+ax.set_yscale("log")
+ax.set_ylim(0.4, 20)
+ax.set_xlabel("number of replicates n")
+ax.set_ylabel("bound / s")
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+at = {n: n - 2 for n in (n_center, 10, 30)}        # position of n in the n_reps array
 print(f"Figure: the 95% interval for sigma as a multiple of s, against the number of replicates, on a log "
-      f"scale. With {n_c} replicates it runs from {lo_ratio[n_c - 2]:.2f} s to {hi_ratio[n_c - 2]:.2f} s; with "
-      f"10, from {lo_ratio[8]:.2f} s to {hi_ratio[8]:.2f} s; with 30, from {lo_ratio[28]:.2f} s to {hi_ratio[28]:.2f} s.")
+      f"scale. With {n_center} replicates it runs from {low_ratio[at[n_center]]:.2f} s to "
+      f"{high_ratio[at[n_center]]:.2f} s; with 10, from {low_ratio[at[10]]:.2f} s to {high_ratio[at[10]]:.2f} s; "
+      f"with 30, from {low_ratio[at[30]]:.2f} s to {high_ratio[at[30]]:.2f} s.")
 ''')
 
 md(r"""
@@ -214,14 +235,20 @@ it is the reason "how many replicates?" has no answer until you know how many fa
 Predict before you run it: with five factors, how many replicates of the $2^5$ will you need?
 """)
 code(r'''
-z_a, z_b = stats.norm.ppf(1 - ALPHA / 2), stats.norm.ppf(TARGET)
-N_needed = 4 * (z_a + z_b) ** 2 * (sigma_plan / DELTA) ** 2
-print(f"z_alpha/2 = {z_a:.3f}, z_beta = {z_b:.3f}; constant 4(z+z)^2 = {4 * (z_a + z_b) ** 2:.2f}")
+# The two Normal quantiles in the formula
+z_alpha = stats.norm.ppf(1 - ALPHA / 2)      # the bar a test must clear: 1.96 for 5%
+z_power = stats.norm.ppf(TARGET)             # how far past the bar the effect must sit for 80% power
+
+N_needed = 4 * (z_alpha + z_power) ** 2 * (sigma_plan / DELTA) ** 2
+print(f"z_alpha/2 = {z_alpha:.3f}, z_beta = {z_power:.3f}; constant 4(z+z)^2 = {4 * (z_alpha + z_power) ** 2:.2f}")
 print(f"runs needed in total: N = {N_needed:.1f}\n")
+
+# Replicates needed = total runs / runs in one copy of the 2^k design, rounded up
 print(f"{'factors k':>9} {'2^k':>5} {'replicates':>11} {'total runs':>11}")
 for k in range(2, 7):
-    r = math.ceil(N_needed / 2 ** k)
-    print(f"{k:9d} {2 ** k:5d} {r:11d} {r * 2 ** k:11d}")
+    one_copy = 2 ** k
+    replicates = math.ceil(N_needed / one_copy)
+    print(f"{k:9d} {one_copy:5d} {replicates:11d} {replicates * one_copy:11d}")
 ''')
 
 md(r"""
@@ -236,19 +263,26 @@ The formula also runs the other way: for a given $N$, what power do you get? Her
 sizes of effect relative to the noise.
 """)
 code(r'''
-Ns = np.arange(4, 161)
+run_counts = np.arange(4, 161)
 fig, ax = plt.subplots(figsize=(7.5, 4))
-crossings = {}
-for ratio, style in ((0.5, ":"), (1.0, "--"), (2.0, "-")):
-    lam = ratio * np.sqrt(Ns) / 2
-    pw = stats.norm.sf(z_a - lam) + stats.norm.cdf(-z_a - lam)
-    crossings[ratio] = int(Ns[np.argmax(pw >= TARGET)]) if (pw >= TARGET).any() else None
-    ax.plot(Ns, pw, style, color="tab:blue", label=f"effect = {ratio:g} sigma")
+crossings = {}                               # first run count reaching the target, per effect size
+for ratio, style in ((0.5, ":"), (1.0, "--"), (2.0, "-")):      # effect size in units of sigma
+    centre = ratio * np.sqrt(run_counts) / 2                     # where the test statistic is centred
+    power_curve = stats.norm.sf(z_alpha - centre) + stats.norm.cdf(-z_alpha - centre)
+    reaches = power_curve >= TARGET
+    crossings[ratio] = int(run_counts[np.argmax(reaches)]) if reaches.any() else None
+    ax.plot(run_counts, power_curve, style, color="tab:blue", label=f"effect = {ratio:g} sigma")
+
 ax.axhline(TARGET, color="gray", lw=0.8)
-for n2 in (8, 16, 32, 64, 128):
-    ax.axvline(n2, color="lightgray", lw=0.8, zorder=0)
-ax.set_xscale("log", base=2); ax.set_xticks([8, 16, 32, 64, 128], ["8", "16", "32", "64", "128"])
-ax.set_xlabel("total runs N"); ax.set_ylabel("power"); ax.legend(loc="lower right"); plt.tight_layout(); plt.show()
+for n_runs in (8, 16, 32, 64, 128):
+    ax.axvline(n_runs, color="lightgray", lw=0.8, zorder=0)
+ax.set_xscale("log", base=2)
+ax.set_xticks([8, 16, 32, 64, 128], ["8", "16", "32", "64", "128"])
+ax.set_xlabel("total runs N")
+ax.set_ylabel("power")
+ax.legend(loc="lower right")
+plt.tight_layout()
+plt.show()
 print(f"Figure: power against total runs (log scale) for effects of 0.5, 1 and 2 sigma, with a gray line at "
       f"{TARGET:.0%}. The 2-sigma curve reaches it at {crossings[2.0]} runs, the 1-sigma curve at "
       f"{crossings[1.0]}, the 0.5-sigma curve at {crossings[0.5]}. Halving the effect quadruples the runs.")
@@ -271,26 +305,36 @@ and noise `sigma_plan`, analyse each one, and count how often A is declared real
 simulated rate will land above or below the 80% target.
 """)
 code(r'''
-D36 = np.vstack([X, np.zeros((n_c, 5))])
-words2 = ["".join(c) for r in (1, 2) for c in itertools.combinations("ABCDE", r)]
-M36 = np.column_stack([np.ones(36)] + [np.prod(D36[:, ["ABCDE".index(ch) for ch in w]], axis=1) for w in words2]
-                      + [np.r_[np.zeros(32), np.ones(n_c)]])                 # last column: curvature
-df36 = M36.shape[0] - M36.shape[1]
-se36 = 2 * sigma_plan / np.sqrt(32)
-tc36 = stats.t.ppf(1 - ALPHA / 2, df36)
-power36 = stats.nct.sf(tc36, df36, DELTA / se36) + stats.nct.cdf(-tc36, df36, DELTA / se36)
-print(f"{M36.shape[1]} terms on {M36.shape[0]} runs: {df36} residual degrees of freedom")
-print(f"SE of an effect {se36:.3f}; noncentrality {DELTA / se36:.3f}; exact power {power36:.3f}")
+# The 36-run design: 32 corners plus 4 center runs (every factor at 0)
+design36 = np.vstack([X, np.zeros((n_center, 5))])
 
+# Term names: the 5 main effects, then the 10 two-factor interactions ("AB", "AC", ...)
+terms = ["".join(c) for size in (1, 2) for c in itertools.combinations("ABCDE", size)]
+term_index = [["ABCDE".index(f) for f in word] for word in terms]   # which columns each term multiplies
+
+# Model matrix: intercept, one column per term, and a curvature column that is 1 at the center
+curvature = np.r_[np.zeros(32), np.ones(n_center)]
+M36 = np.column_stack([np.ones(36)] + [np.prod(design36[:, idx], axis=1) for idx in term_index] + [curvature])
+
+# Exact power for the A effect: a t test on the residual degrees of freedom
+df36 = M36.shape[0] - M36.shape[1]           # runs minus terms
+se36 = 2 * sigma_plan / np.sqrt(32)          # SE of an effect; center runs add nothing to it
+t_crit36 = stats.t.ppf(1 - ALPHA / 2, df36)
+shift = DELTA / se36                         # noncentrality
+power36 = stats.nct.sf(t_crit36, df36, shift) + stats.nct.cdf(-t_crit36, df36, shift)
+print(f"{M36.shape[1]} terms on {M36.shape[0]} runs: {df36} residual degrees of freedom")
+print(f"SE of an effect {se36:.3f}; noncentrality {shift:.3f}; exact power {power36:.3f}")
+
+# Simulate: REPS experiments, each with a true A effect of DELTA, analysed the same way
 SEED, REPS = 515, 4000
 rng = np.random.default_rng(SEED)
 print(f"simulating {REPS} experiments, seed {SEED}")
-Y = (DELTA / 2) * D36[:, [0]] + rng.normal(0, sigma_plan, (36, REPS))   # true A coefficient DELTA/2
-B = np.linalg.solve(M36.T @ M36, M36.T @ Y)
-s2 = ((Y - M36 @ B) ** 2).sum(axis=0) / df36
-t_A = B[1] / np.sqrt(s2 * np.linalg.inv(M36.T @ M36)[1, 1])
-sim_power = (np.abs(t_A) > tc36).mean()
-mc_se = np.sqrt(sim_power * (1 - sim_power) / REPS)
+Y_sim = (DELTA / 2) * design36[:, [0]] + rng.normal(0, sigma_plan, (36, REPS))   # one column per experiment
+coef_sim = np.linalg.solve(M36.T @ M36, M36.T @ Y_sim)
+resid_var = ((Y_sim - M36 @ coef_sim) ** 2).sum(axis=0) / df36
+t_A = coef_sim[1] / np.sqrt(resid_var * np.linalg.inv(M36.T @ M36)[1, 1])
+sim_power = (np.abs(t_A) > t_crit36).mean()                 # share of experiments that found A
+mc_se = np.sqrt(sim_power * (1 - sim_power) / REPS)        # the simulation's own uncertainty
 print(f"declared real in {sim_power:.3f} of them (Monte Carlo SE {mc_se:.3f}); exact {power36:.3f}")
 assert abs(sim_power - power36) < 4 * mc_se, "the simulation disagrees with the noncentral t power"
 ''')
@@ -333,24 +377,32 @@ has a temperature-by-stirring interaction. A change of one point of purity is wo
 Predict: which response will need more runs, yield or purity?
 """)
 code(r'''
-PURITY_TRUTH = {"intercept": 92.0, "A": -1.5, "D": 1.0, "AD": 0.8}      # coded units, coefficients
+# Purity's true model, in coded units (coefficients, not effects)
+PURITY_TRUTH = {"intercept": 92.0, "A": -1.5, "D": 1.0, "AD": 0.8}
 PURITY_SIGMA, SEED_P = 0.8, 2612
-DELTA_P = 1.0                       # smallest change in purity worth detecting, percentage points
+DELTA_P = 1.0                                # smallest change in purity worth detecting, percentage points
+
+# Simulate purity on the same 36 runs (A is column 0, D is column 3)
+A_col, D_col = design36[:, 0], design36[:, 3]
 rng_p = np.random.default_rng(SEED_P)
-purity = (PURITY_TRUTH["intercept"] + PURITY_TRUTH["A"] * D36[:, 0] + PURITY_TRUTH["D"] * D36[:, 3]
-          + PURITY_TRUTH["AD"] * D36[:, 0] * D36[:, 3] + rng_p.normal(0, PURITY_SIGMA, 36))
+purity = (PURITY_TRUTH["intercept"] + PURITY_TRUTH["A"] * A_col + PURITY_TRUTH["D"] * D_col
+          + PURITY_TRUTH["AD"] * A_col * D_col + rng_p.normal(0, PURITY_SIGMA, 36))
 print(f"purity simulated on the same {len(purity)} runs, seed {SEED_P}")
-Ymat = np.column_stack([np.r_[y, y_center], purity])        # one row per run, one column per response
-B_joint = np.linalg.solve(M36.T @ M36, M36.T @ Ymat)        # one solve: 17 coefficients x 2 responses
-B_sep = [np.linalg.solve(M36.T @ M36, M36.T @ Ymat[:, j]) for j in range(Ymat.shape[1])]
-print(f"Y is {Ymat.shape[0]} x {Ymat.shape[1]}; B-hat is {B_joint.shape[0]} x {B_joint.shape[1]}")
-print(f"largest gap between the joint fit and two separate fits: "
-      f"{max(np.abs(B_joint[:, j] - B_sep[j]).max() for j in range(2)):.1e}\n")
-terms36 = ["intercept"] + words2 + ["curvature"]
+
+# Both responses side by side: one row per run, one column per response
+Y_both = np.column_stack([np.r_[y, y_center], purity])
+coef_both = np.linalg.solve(M36.T @ M36, M36.T @ Y_both)                 # one solve, both responses
+coef_each = [np.linalg.solve(M36.T @ M36, M36.T @ Y_both[:, j]) for j in range(2)]   # one at a time
+gap = max(np.abs(coef_both[:, j] - coef_each[j]).max() for j in range(2))
+print(f"Y is {Y_both.shape[0]} x {Y_both.shape[1]}; B-hat is {coef_both.shape[0]} x {coef_both.shape[1]}")
+print(f"largest gap between the joint fit and two separate fits: {gap:.1e}\n")
+
+# A few of the coefficients, side by side
+names36 = ["intercept"] + terms + ["curvature"]
 print(f"{'term':10} {'yield':>8} {'purity':>8}")
-for w in ["intercept", "A", "B", "C", "D", "AB", "AD"]:
-    i = terms36.index(w)
-    print(f"{w:10} {B_joint[i, 0]:8.3f} {B_joint[i, 1]:8.3f}")
+for name in ["intercept", "A", "B", "C", "D", "AB", "AD"]:
+    i = names36.index(name)
+    print(f"{name:10} {coef_both[i, 0]:8.3f} {coef_both[i, 1]:8.3f}")
 ''')
 
 md(r"""
@@ -358,15 +410,21 @@ Now size the study for each response, exactly as in steps 1 and 2: the pilot $s$
 runs, the same 80% upper bound, the same formula, and the exact power of the 36-run design.
 """)
 code(r'''
-s_p = purity[32:].std(ddof=1)
-sigma_plan_p = s_p * np.sqrt(df_pure / stats.chi2.ppf(1 - PLAN_CONF, df_pure))
-N_needed_p = 4 * (z_a + z_b) ** 2 * (sigma_plan_p / DELTA_P) ** 2
-se36_p = 2 * sigma_plan_p / np.sqrt(32)
-power36_p = stats.nct.sf(tc36, df36, DELTA_P / se36_p) + stats.nct.cdf(-tc36, df36, DELTA_P / se36_p)
-print(f"{'response':9} {'Delta':>6} {'pilot s':>8} {'sigma_plan':>11} {'sigma/Delta':>12} {'N needed':>9} {'power, 36 runs':>15}")
-for lab, d_, s_, sp_, n_, pw_ in [("yield", DELTA, s, sigma_plan, N_needed, power36),
-                                  ("purity", DELTA_P, s_p, sigma_plan_p, N_needed_p, power36_p)]:
-    print(f"{lab:9} {d_:6.1f} {s_:8.3f} {sp_:11.3f} {sp_ / d_:12.3f} {n_:9.1f} {pw_:15.3f}")
+# Steps 1 and 2 again, for purity: pilot s from its 4 center runs, the same bound, the same formula
+s_purity = purity[32:].std(ddof=1)
+sigma_plan_purity = s_purity * np.sqrt(df_center / stats.chi2.ppf(1 - PLAN_CONF, df_center))
+N_needed_purity = 4 * (z_alpha + z_power) ** 2 * (sigma_plan_purity / DELTA_P) ** 2
+
+# Exact power of the same 36-run design, for purity
+shift_purity = DELTA_P / (2 * sigma_plan_purity / np.sqrt(32))
+power36_purity = stats.nct.sf(t_crit36, df36, shift_purity) + stats.nct.cdf(-t_crit36, df36, shift_purity)
+
+print(f"{'response':9} {'Delta':>6} {'pilot s':>8} {'sigma_plan':>11} {'sigma/Delta':>12} {'N needed':>9} "
+      f"{'power, 36 runs':>15}")
+table = [("yield", DELTA, s, sigma_plan, N_needed, power36),
+         ("purity", DELTA_P, s_purity, sigma_plan_purity, N_needed_purity, power36_purity)]
+for name, delta_, pilot_s, plan, n_needed, pw in table:
+    print(f"{name:9} {delta_:6.1f} {pilot_s:8.3f} {plan:11.3f} {plan / delta_:12.3f} {n_needed:9.1f} {pw:15.3f}")
 ''')
 
 md(r"""
@@ -383,20 +441,27 @@ correction divides $\alpha$ by the number of tests, which keeps the chance of *a
 $\alpha$; it is conservative, and naming one primary response in advance is the gentler alternative.
 """)
 code(r'''
-res = Ymat - M36 @ B_joint
-s2_resp = (res ** 2).sum(axis=0) / df36
-t_resp = B_joint / np.sqrt(np.outer(np.diag(np.linalg.inv(M36.T @ M36)), s2_resp))
-n_tests = (M36.shape[1] - 1) * Ymat.shape[1]
-tc_bonf = stats.t.ppf(1 - ALPHA / (2 * n_tests), df36)
+# t statistic for every coefficient of both responses
+resid = Y_both - M36 @ coef_both
+resid_var_each = (resid ** 2).sum(axis=0) / df36                  # one noise estimate per response
+coef_var_factor = np.diag(np.linalg.inv(M36.T @ M36))              # same for both responses
+t_stats = coef_both / np.sqrt(np.outer(coef_var_factor, resid_var_each))
+
+# How many tests, and the stricter Bonferroni bar
+n_tests = (M36.shape[1] - 1) * Y_both.shape[1]                     # 16 terms x 2 responses
+t_crit_bonf = stats.t.ppf(1 - ALPHA / (2 * n_tests), df36)
 print(f"{n_tests} tests: expected false alarms if nothing is real {n_tests * ALPHA:.1f}; "
       f"chance of at least one {1 - (1 - ALPHA) ** n_tests:.2f}")
-print(f"critical |t| on {df36} df: {tc36:.2f} at alpha {ALPHA}, {tc_bonf:.2f} after Bonferroni")
-sig = {}
-for j, lab in enumerate(["yield", "purity"]):
-    sig[lab] = ([terms36[i] for i in range(1, len(terms36)) if abs(t_resp[i, j]) > tc36],
-                [terms36[i] for i in range(1, len(terms36)) if abs(t_resp[i, j]) > tc_bonf])
-    print(f"{lab:7} significant at {ALPHA}: {sig[lab][0]};  after Bonferroni: {sig[lab][1]}")
-print(f"correlation of the two responses' residuals: {np.corrcoef(res[:, 0], res[:, 1])[0, 1]:.2f}")
+print(f"critical |t| on {df36} df: {t_crit36:.2f} at alpha {ALPHA}, {t_crit_bonf:.2f} after Bonferroni")
+
+# Which terms clear each bar, per response (skipping the intercept)
+significant = {}
+for j, name in enumerate(["yield", "purity"]):
+    at_alpha = [names36[i] for i in range(1, len(names36)) if abs(t_stats[i, j]) > t_crit36]
+    at_bonf = [names36[i] for i in range(1, len(names36)) if abs(t_stats[i, j]) > t_crit_bonf]
+    significant[name] = (at_alpha, at_bonf)
+    print(f"{name:7} significant at {ALPHA}: {at_alpha};  after Bonferroni: {at_bonf}")
+print(f"correlation of the two responses' residuals: {np.corrcoef(resid[:, 0], resid[:, 1])[0, 1]:.2f}")
 ''')
 
 md(r"""
@@ -404,19 +469,24 @@ The picture: the same 36 runs, two responses, two different sets of active effec
 """)
 code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
-pos = np.arange(1, len(terms36))
-for ax, j, lab in zip(axes, range(2), ["yield", "purity"]):
-    tv = t_resp[1:, j]
-    ax.barh(pos, tv, color=["tab:blue" if abs(v) > tc_bonf else "lightgray" for v in tv])
-    for c_ in (tc36, tc_bonf):
-        ax.axvline(c_, color="black", lw=0.8, ls=":" if c_ == tc36 else "--")
-        ax.axvline(-c_, color="black", lw=0.8, ls=":" if c_ == tc36 else "--")
-    ax.set_title(lab); ax.set_xlabel("t statistic")
-axes[0].set_yticks(pos); axes[0].set_yticklabels(terms36[1:]); axes[0].invert_yaxis()
-plt.tight_layout(); plt.show()
+bar_pos = np.arange(1, len(names36))
+for ax, j, name in zip(axes, range(2), ["yield", "purity"]):
+    t_vals = t_stats[1:, j]                                       # skip the intercept
+    ax.barh(bar_pos, t_vals, color=["tab:blue" if abs(t) > t_crit_bonf else "lightgray" for t in t_vals])
+    for bar, style in ((t_crit36, ":"), (t_crit_bonf, "--")):     # the 5% bar and the Bonferroni bar
+        ax.axvline(bar, color="black", lw=0.8, ls=style)
+        ax.axvline(-bar, color="black", lw=0.8, ls=style)
+    ax.set_title(name)
+    ax.set_xlabel("t statistic")
+axes[0].set_yticks(bar_pos)
+axes[0].set_yticklabels(names36[1:])
+axes[0].invert_yaxis()
+plt.tight_layout()
+plt.show()
 print(f"Figure: t statistics for the 16 terms of the 36-run model, yield on the left and purity on the right, "
-      f"from one model matrix. Dotted lines: |t| = {tc36:.2f} (alpha {ALPHA}); dashed: {tc_bonf:.2f} (Bonferroni over "
-      f"{n_tests} tests). Blue bars clear Bonferroni: yield {sig['yield'][1]}, purity {sig['purity'][1]}.")
+      f"from one model matrix. Dotted lines: |t| = {t_crit36:.2f} (alpha {ALPHA}); dashed: {t_crit_bonf:.2f} "
+      f"(Bonferroni over {n_tests} tests). Blue bars clear Bonferroni: yield {significant['yield'][1]}, "
+      f"purity {significant['purity'][1]}.")
 ''')
 
 md(r"""
@@ -469,25 +539,28 @@ with two-factor interactions, so this design can only say which factors deserve 
 Predict before you run it: which rung is the first to drop below 80% power for a 2-point effect?
 """)
 code(r'''
-# name, corner runs, center runs, sum of x^2 in one factor's column, terms fitted
-ladder = [("3^5, 3 replicates", 0, 0, 729 * 2 / 3, 21),
-          ("2^5 x 3 + 4 center", 96, 4, 96, 17),
-          ("2^5 + 4 center", 32, 4, 32, 17),
-          ("half + 4 center", 16, 4, 16, 17),
-          ("half + 8 center", 16, 8, 16, 17),
-          ("quarter + 4 center", 8, 4, 8, 7)]
+# Each rung: its runs, the sum of x^2 in one factor's column (it sets the SE), and the terms fitted.
+# In the 3^5, a third of the runs sit at the middle level, where x = 0 adds nothing to the sum.
+ladder = [{"name": "3^5, 3 replicates", "runs": 729, "sum_x2": 729 * 2 / 3, "terms": 21},
+          {"name": "2^5 x 3 + 4 center", "runs": 96 + 4, "sum_x2": 96, "terms": 17},
+          {"name": "2^5 + 4 center", "runs": 32 + 4, "sum_x2": 32, "terms": 17},
+          {"name": "half + 4 center", "runs": 16 + 4, "sum_x2": 16, "terms": 17},
+          {"name": "half + 8 center", "runs": 16 + 8, "sum_x2": 16, "terms": 17},
+          {"name": "quarter + 4 center", "runs": 8 + 4, "sum_x2": 8, "terms": 7}]
+
 print(f"{'design':20} {'runs':>5} {'SE':>6} {'df':>4} {'power @ DELTA':>14} {'power @ 2 DELTA':>16}")
-ladder_rows = []
-for name, nf, nc, sx2, p in ladder:
-    n_runs = 729 if nf == 0 else nf + nc
-    se, df = 2 * sigma_plan / np.sqrt(sx2), n_runs - p
-    tc = stats.t.ppf(1 - ALPHA / 2, df)
-    pw = []
-    for d in (DELTA, 2 * DELTA):
-        lower = stats.nct.cdf(-tc, df, d / se)      # nan when d/se is huge; the tail is then ~0
-        pw.append(stats.nct.sf(tc, df, d / se) + np.nan_to_num(lower))
-    ladder_rows.append((name, n_runs, se, df, pw[0], pw[1]))
-    print(f"{name:20} {n_runs:5d} {se:6.3f} {df:4d} {pw[0]:14.3f} {pw[1]:16.3f}")
+for rung in ladder:
+    rung["se"] = 2 * sigma_plan / np.sqrt(rung["sum_x2"])        # SE of an effect
+    rung["df"] = rung["runs"] - rung["terms"]                    # residual degrees of freedom
+    t_crit = stats.t.ppf(1 - ALPHA / 2, rung["df"])
+    powers = []
+    for effect in (DELTA, 2 * DELTA):
+        shift = effect / rung["se"]
+        lower_tail = stats.nct.cdf(-t_crit, rung["df"], shift)  # nan when shift is huge; the tail is then ~0
+        powers.append(stats.nct.sf(t_crit, rung["df"], shift) + np.nan_to_num(lower_tail))
+    rung["power"], rung["power_2x"] = powers
+    print(f"{rung['name']:20} {rung['runs']:5d} {rung['se']:6.3f} {rung['df']:4d} "
+          f"{rung['power']:14.3f} {rung['power_2x']:16.3f}")
 ''')
 
 md(r"""
@@ -495,18 +568,23 @@ The same ladder as a picture: bar length is the number of runs, on a log scale, 
 labelled with its power for a 2-point effect.
 """)
 code(r'''
+top_down = ladder[::-1]                      # barh draws from the bottom up
 fig, ax = plt.subplots(figsize=(8, 3.8))
-names = [r[0] for r in ladder_rows][::-1]
-ax.barh(names, [r[1] for r in ladder_rows][::-1],
-        color=["tab:blue" if r[4] >= TARGET else "white" for r in ladder_rows][::-1], edgecolor="black")
-for i, r in enumerate(ladder_rows[::-1]):
-    ax.text(r[1] * 1.08, i, f"{r[1]} runs, power {r[4]:.2f}", va="center")
-ax.set_xscale("log"); ax.set_xlim(5, 4000); ax.set_xlabel("total runs (log scale)")
-plt.tight_layout(); plt.show()
-ok = [r for r in ladder_rows if r[4] >= TARGET]
+ax.barh([r["name"] for r in top_down], [r["runs"] for r in top_down], edgecolor="black",
+        color=["tab:blue" if r["power"] >= TARGET else "white" for r in top_down])
+for i, rung in enumerate(top_down):
+    ax.text(rung["runs"] * 1.08, i, f"{rung['runs']} runs, power {rung['power']:.2f}", va="center")
+ax.set_xscale("log")
+ax.set_xlim(5, 4000)
+ax.set_xlabel("total runs (log scale)")
+plt.tight_layout()
+plt.show()
+
+enough = [r for r in ladder if r["power"] >= TARGET]       # rungs that keep 80% power
+cheapest = min(enough, key=lambda r: r["runs"])
 print(f"Figure: horizontal bars of total runs for six designs, log scale. Filled bars reach {TARGET:.0%} power "
-      f"for a {DELTA}-point effect: {', '.join(r[0] for r in ok)}. The smallest of them is "
-      f"{min(ok, key=lambda r: r[1])[0]} at {min(r[1] for r in ok)} runs, against 729 for the starting plan. "
+      f"for a {DELTA}-point effect: {', '.join(r['name'] for r in enough)}. The smallest of them is "
+      f"{cheapest['name']} at {cheapest['runs']} runs, against 729 for the starting plan. "
       f"The open bars fall short.")
 ''')
 
@@ -537,14 +615,18 @@ code(r'''
 DRIFT = 0.1                                     # yield points per run
 time_std = np.arange(1, 33)                     # made in standard order
 time_rand = run_order                           # made in the table's random order
+y_drift_std = y + DRIFT * time_std              # the yields we would see, made in standard order
+y_drift_rand = y + DRIFT * time_rand            # ... and made in the random order
 print(f"drift {DRIFT} per run.  bias = DRIFT x (effect of the time column)\n")
 print(f"{'':12} {'standard order':>15} {'random order':>14}")
+
+# A main effect = mean yield at high minus mean yield at low. Bias = effect with drift - effect without.
 bias_std, bias_rand = {}, {}
 for j, f in enumerate("ABCDE"):
-    hi, lo = X[:, j] > 0, X[:, j] < 0
-    eff_y = y[hi].mean() - y[lo].mean()
-    bias_std[f] = ((y + DRIFT * time_std)[hi].mean() - (y + DRIFT * time_std)[lo].mean()) - eff_y
-    bias_rand[f] = ((y + DRIFT * time_rand)[hi].mean() - (y + DRIFT * time_rand)[lo].mean()) - eff_y
+    high, low = X[:, j] > 0, X[:, j] < 0
+    true_effect = y[high].mean() - y[low].mean()
+    bias_std[f] = (y_drift_std[high].mean() - y_drift_std[low].mean()) - true_effect
+    bias_rand[f] = (y_drift_rand[high].mean() - y_drift_rand[low].mean()) - true_effect
     print(f"{f} {doe.FACTOR_NAMES[f]:10} {bias_std[f]:+15.2f} {bias_rand[f]:+14.2f}")
 ''')
 
@@ -555,11 +637,15 @@ code(r'''
 xs = np.arange(5)
 fig, ax = plt.subplots(figsize=(7, 3.5))
 ax.bar(xs - 0.2, [bias_std[f] for f in "ABCDE"], 0.4, label="standard order", color="tab:blue")
-ax.bar(xs + 0.2, [bias_rand[f] for f in "ABCDE"], 0.4, label="randomized order", color="white", edgecolor="black", hatch="//")
+ax.bar(xs + 0.2, [bias_rand[f] for f in "ABCDE"], 0.4, label="randomized order",
+       color="white", edgecolor="black", hatch="//")
 ax.axhline(DELTA, color="tab:orange", ls="--", lw=1, label=f"DELTA = {DELTA}")
 ax.axhline(0, color="black", lw=0.8)
-ax.set_xticks(xs, [f"{f}\n{doe.FACTOR_NAMES[f]}" for f in "ABCDE"]); ax.set_ylabel("bias in the effect")
-ax.legend(); plt.tight_layout(); plt.show()
+ax.set_xticks(xs, [f"{f}\n{doe.FACTOR_NAMES[f]}" for f in "ABCDE"])
+ax.set_ylabel("bias in the effect")
+ax.legend()
+plt.tight_layout()
+plt.show()
 worst_rand = max(bias_rand, key=lambda f: abs(bias_rand[f]))
 print(f"Figure: the bias a drift of {DRIFT} per run adds to each main effect. In standard order E picks up "
       f"{bias_std['E']:+.2f}, close to the {DELTA}-point effect the study is sized to detect, and D "
@@ -587,14 +673,19 @@ mixed model.
 """)
 code(r'''
 DAY_SHIFT = 2.0                                  # day two runs 2 points higher, for no reason in the design
-day2 = X[:, 0] * X[:, 1] * X[:, 2] * X[:, 3] * X[:, 4] > 0
-y_days = y + DAY_SHIFT * day2
+abcde = X.prod(axis=1)                           # the ABCDE column: product of all five factors
+on_day2 = abcde > 0                              # day two = the runs where ABCDE is +
+y_days = y + DAY_SHIFT * on_day2                 # the yields we would see if the runs were split over two days
+
+# How much does the day shift move each effect? effect with the shift - effect without
 change = {}
-for w in words2 + ["ABCDE"]:
-    col = np.prod(X[:, ["ABCDE".index(ch) for ch in w]], axis=1)
-    change[w] = (y_days[col > 0].mean() - y_days[col < 0].mean()) - (y[col > 0].mean() - y[col < 0].mean())
-print(f"{day2.sum()} runs on day two; day shift {DAY_SHIFT}")
-print(f"largest change in any main effect or two-factor interaction: {max(abs(change[w]) for w in words2):.1e}")
+for word, idx in zip(terms + ["ABCDE"], term_index + [[0, 1, 2, 3, 4]]):
+    col = np.prod(X[:, idx], axis=1)
+    with_shift = y_days[col > 0].mean() - y_days[col < 0].mean()
+    without = y[col > 0].mean() - y[col < 0].mean()
+    change[word] = with_shift - without
+print(f"{on_day2.sum()} runs on day two; day shift {DAY_SHIFT}")
+print(f"largest change in any main effect or two-factor interaction: {max(abs(change[w]) for w in terms):.1e}")
 print(f"change in the ABCDE effect: {change['ABCDE']:+.2f}")
 ''')
 
@@ -623,16 +714,21 @@ Predict before you run it: how many of the 16 terms (intercept, 5 main effects, 
 these six runs estimate?
 """)
 code(r'''
-ofat = [0, 1, 2, 4, 8, 16]                      # standard-order rows: all low, then A, B, C, D, E alone
-Xo, yo = X[ofat], y[ofat]
+# The six one-factor-at-a-time runs, as rows of the 2^5 in standard order
+ofat = [0, 1, 2, 4, 8, 16]                      # all low, then A, B, C, D, E raised alone
+X_ofat, y_ofat = X[ofat], y[ofat]
 print(" A B C D E   yield")
-for row, v in zip(Xo, yo):
-    print(" " + " ".join("+" if s_ > 0 else "-" for s_ in row) + f"   {v:5.2f}")
-M_main = np.column_stack([np.ones(6), Xo])
-M_full = np.column_stack([np.ones(6)] + [np.prod(Xo[:, ["ABCDE".index(ch) for ch in w]], axis=1) for w in words2])
+for settings, value in zip(X_ofat, y_ofat):
+    print(" " + " ".join("+" if x > 0 else "-" for x in settings) + f"   {value:5.2f}")
+
+# Two models these runs might support: main effects only, and main effects plus interactions
+M_main = np.column_stack([np.ones(6), X_ofat])
+M_full = np.column_stack([np.ones(6)] + [np.prod(X_ofat[:, idx], axis=1) for idx in term_index])
 print(f"\nmain-effects model: {M_main.shape[1]} terms, rank {np.linalg.matrix_rank(M_main)}")
 print(f"with interactions:  {M_full.shape[1]} terms, rank {np.linalg.matrix_rank(M_full)}")
-var_ofat = 4 * np.diag(np.linalg.inv(M_main.T @ M_main))[1:]      # effect = 2 x coefficient
+
+# Variance of each main effect (effect = 2 x coefficient, so 4 x the coefficient's variance)
+var_ofat = 4 * np.diag(np.linalg.inv(M_main.T @ M_main))[1:]
 print(f"variance of each main effect, in units of sigma^2: {var_ofat.round(3).tolist()}")
 print(f"a 2^(5-2) factorial with 8 runs: {4 / 8:.3f}")
 ''')
@@ -678,6 +774,8 @@ or below it, and roughly by how much?
 code(r'''
 TRUTH = doe.REACTOR_TRUTH
 SEED_LOG, N_LOG, RHO = 1119, 40, 0.8      # RHO: how closely the operators tied catalyst to temperature
+
+# The logged runs: temperature anywhere in its range, catalyst following it, the rest at the middle
 rng_log = np.random.default_rng(SEED_LOG)
 A_log = rng_log.uniform(-1, 1, N_LOG)
 B_log = np.clip(RHO * A_log + rng_log.normal(0, 0.3, N_LOG), -1, 1)
@@ -685,18 +783,23 @@ y_log = (TRUTH["intercept"] + TRUTH["A"] * A_log + TRUTH["B"] * B_log + TRUTH["A
          + TRUTH["AA"] * A_log**2 + rng_log.normal(0, doe.REACTOR_SIGMA, N_LOG))   # C, D, E at 0
 r_AB = np.corrcoef(A_log, B_log)[0, 1]
 print(f"{N_LOG} logged runs, seed {SEED_LOG}; correlation of temperature and catalyst r = {r_AB:.2f}\n")
+
+# Four regressions: on the log and on the designed corners, each with and without catalyst
+ones_log, ones_design = np.ones(N_LOG), np.ones(len(y))
+regressions = {"log: temperature only": (np.column_stack([ones_log, A_log]), y_log),
+               "log: temperature + catalyst": (np.column_stack([ones_log, A_log, B_log]), y_log),
+               "design: temperature only": (np.column_stack([ones_design, X[:, 0]]), y),
+               "design: temperature + catalyst": (np.column_stack([ones_design, X[:, 0], X[:, 1]]), y)}
 fits = {}
-for label, M_fit, yy in [("log: temperature only", np.column_stack([np.ones(N_LOG), A_log]), y_log),
-                         ("log: temperature + catalyst", np.column_stack([np.ones(N_LOG), A_log, B_log]), y_log),
-                         ("design: temperature only", np.column_stack([np.ones(len(y)), X[:, 0]]), y),
-                         ("design: temperature + catalyst", np.column_stack([np.ones(len(y)), X[:, :2]]), y)]:
-    b_fit = np.linalg.solve(M_fit.T @ M_fit, M_fit.T @ yy)
-    df_fit = len(yy) - M_fit.shape[1]
-    s2_fit = np.sum((yy - M_fit @ b_fit) ** 2) / df_fit
-    se_fit = np.sqrt(s2_fit * np.diag(np.linalg.inv(M_fit.T @ M_fit)))
-    ci_half = stats.t.ppf(1 - ALPHA / 2, df_fit) * se_fit[1]
-    fits[label] = (b_fit, b_fit[1] - ci_half, b_fit[1] + ci_half)
-    print(f"{label:31} temperature coefficient {b_fit[1]:5.2f}, 95% CI {b_fit[1] - ci_half:5.2f} to {b_fit[1] + ci_half:5.2f}")
+for label, (M_fit, y_fit) in regressions.items():
+    coef = np.linalg.solve(M_fit.T @ M_fit, M_fit.T @ y_fit)
+    df_fit = len(y_fit) - M_fit.shape[1]
+    noise_var = np.sum((y_fit - M_fit @ coef) ** 2) / df_fit
+    se_temp = np.sqrt(noise_var * np.linalg.inv(M_fit.T @ M_fit)[1, 1])   # SE of the temperature coefficient
+    half_width = stats.t.ppf(1 - ALPHA / 2, df_fit) * se_temp
+    fits[label] = (coef, coef[1] - half_width, coef[1] + half_width)
+    print(f"{label:31} temperature coefficient {coef[1]:5.2f}, "
+          f"95% CI {coef[1] - half_width:5.2f} to {coef[1] + half_width:5.2f}")
 ''')
 
 md(r"""
@@ -705,16 +808,21 @@ predicts for the temperature-only slope. In the design, the same $\delta$ is the
 column on the A column.
 """)
 code(r'''
+# delta: the slope of catalyst on temperature in the log
 M_delta = np.column_stack([np.ones(N_LOG), A_log])
 delta = np.linalg.solve(M_delta.T @ M_delta, M_delta.T @ B_log)[1]
-b_short = fits["log: temperature only"][0][1]
-b_long = fits["log: temperature + catalyst"][0]
-ovb = b_long[1] + b_long[2] * delta
+
+slope_alone = fits["log: temperature only"][0][1]          # temperature on its own
+coef_both_log = fits["log: temperature + catalyst"][0]      # intercept, temperature, catalyst
+temp_coef, cat_coef = coef_both_log[1], coef_both_log[2]
+formula = temp_coef + cat_coef * delta                       # the omitted-variable formula
 print(f"delta in the log = {delta:.3f}")
-print(f"formula: {b_long[1]:.3f} + {b_long[2]:.3f} x {delta:.3f} = {ovb:.3f};  temperature-only slope {b_short:.3f}  "
-      f"(difference {abs(ovb - b_short):.1e})")
+print(f"formula: {temp_coef:.3f} + {cat_coef:.3f} x {delta:.3f} = {formula:.3f};  "
+      f"temperature-only slope {slope_alone:.3f}  (difference {abs(formula - slope_alone):.1e})")
 print(f"what the truth predicts: {TRUTH['A']} + {TRUTH['B']} x {delta:.3f} = {TRUTH['A'] + TRUTH['B'] * delta:.3f}")
 print(f"standard-error inflation from r = {r_AB:.2f}: 1/sqrt(1 - r^2) = {1 / np.sqrt(1 - r_AB**2):.2f}")
+
+# The same delta in the designed corners: catalyst's column regressed on temperature's
 delta_design = (X[:, 0] @ X[:, 1]) / (X[:, 0] @ X[:, 0])
 print(f"delta in the design = {delta_design:.1f}: temperature's coefficient is "
       f"{fits['design: temperature only'][0][1]:.3f} without catalyst and "
@@ -727,23 +835,35 @@ true slope; and the four estimates of temperature's coefficient with their 95% i
 """)
 code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-sc = axes[0].scatter(A_log, y_log, c=B_log, cmap="coolwarm", vmin=-1, vmax=1, edgecolor="black", lw=0.4)
+
+# Left: the logged runs, the fitted line, and a line with the true slope
+dots = axes[0].scatter(A_log, y_log, c=B_log, cmap="coolwarm", vmin=-1, vmax=1, edgecolor="black", lw=0.4)
 grid = np.linspace(-1, 1, 50)
-axes[0].plot(grid, fits["log: temperature only"][0][0] + b_short * grid, color="black", label=f"fitted slope {b_short:.1f}")
-axes[0].plot(grid, y_log.mean() + TRUTH["A"] * (grid - A_log.mean()), color="gray", ls="--", label=f"true slope {TRUTH['A']}")
-axes[0].set_xlabel("temperature (coded)"); axes[0].set_ylabel("yield"); axes[0].legend(loc="upper left")
-fig.colorbar(sc, ax=axes[0], label="catalyst (coded)")
+intercept_alone = fits["log: temperature only"][0][0]
+axes[0].plot(grid, intercept_alone + slope_alone * grid, color="black", label=f"fitted slope {slope_alone:.1f}")
+axes[0].plot(grid, y_log.mean() + TRUTH["A"] * (grid - A_log.mean()), color="gray", ls="--",
+             label=f"true slope {TRUTH['A']}")
+axes[0].set_xlabel("temperature (coded)")
+axes[0].set_ylabel("yield")
+axes[0].legend(loc="upper left")
+fig.colorbar(dots, ax=axes[0], label="catalyst (coded)")
+
+# Right: the four estimates of temperature's coefficient, with their intervals
 labels = list(fits)
 for i, label in enumerate(labels):
-    b_fit, lo, hi = fits[label]
-    axes[1].errorbar(b_fit[1], i, xerr=[[b_fit[1] - lo], [hi - b_fit[1]]], fmt="o", color="black", capsize=4)
+    coef, low, high = fits[label]
+    axes[1].errorbar(coef[1], i, xerr=[[coef[1] - low], [high - coef[1]]], fmt="o", color="black", capsize=4)
 axes[1].axvline(TRUTH["A"], color="gray", ls="--")
-axes[1].set_yticks(range(len(labels))); axes[1].set_yticklabels(labels); axes[1].invert_yaxis()
+axes[1].set_yticks(range(len(labels)))
+axes[1].set_yticklabels(labels)
+axes[1].invert_yaxis()
 axes[1].set_xlabel("temperature coefficient, 95% CI")
-plt.tight_layout(); plt.show()
+plt.tight_layout()
+plt.show()
+
 outside = [label for label in labels if not fits[label][1] <= TRUTH["A"] <= fits[label][2]]
 print(f"Figure: left, {N_LOG} logged runs of yield against temperature, coloured by catalyst, which rises with "
-      f"temperature (r = {r_AB:.2f}); the fitted line has slope {b_short:.2f} against a true {TRUTH['A']}. Right, the "
+      f"temperature (r = {r_AB:.2f}); the fitted line has slope {slope_alone:.2f} against a true {TRUTH['A']}. Right, the "
       f"temperature coefficient from each of four regressions with its 95% interval; intervals that miss the "
       f"true value: {outside if outside else 'none'}.")
 ''')
@@ -802,24 +922,34 @@ the first few runs added raise the rank or the determinant?
 """)
 code(r'''
 N_ADD = 16
-cand_rows = [i for i in range(32) if i not in ofat]
+cand_rows = [i for i in range(32) if i not in ofat]     # the 26 corners not yet run
 candidates = X[cand_rows]
-term_idx = [["ABCDE".index(ch) for ch in w] for w in words2]
-rows, batch, chosen, rank_path, logdet_path = Xo.copy(), -np.ones(6), [], [], []
+
+current = X_ofat.copy()             # the runs so far, starting with the six we have
+batch = -np.ones(6)                 # block column: -1 for the old runs, +1 for each new one
+chosen, rank_path, logdet_path = [], [], []
+
 for step in range(N_ADD):
-    best_i, best_v = None, -np.inf
+    # Try every unused candidate; keep the one that makes log det(M'M) largest
+    best, best_logdet = None, -np.inf
     for i, cand in enumerate(candidates):
         if i in chosen:
             continue
-        trial, tb = np.vstack([rows, cand]), np.append(batch, 1.0)
-        M = np.column_stack([np.ones(len(trial))] + [np.prod(trial[:, ix], axis=1) for ix in term_idx] + [tb])
-        v = np.linalg.slogdet(M.T @ M + doe.AUGMENT_RIDGE * np.eye(M.shape[1]))[1]
-        if v > best_v:
-            best_i, best_v = i, v
-    chosen.append(best_i)
-    rows, batch = np.vstack([rows, candidates[best_i]]), np.append(batch, 1.0)
-    M = np.column_stack([np.ones(len(rows))] + [np.prod(rows[:, ix], axis=1) for ix in term_idx] + [batch])
-    rank_path.append(int(np.linalg.matrix_rank(M))); logdet_path.append(best_v)
+        trial = np.vstack([current, cand])
+        M_trial = np.column_stack([np.ones(len(trial))] + [np.prod(trial[:, idx], axis=1) for idx in term_index]
+                                  + [np.append(batch, 1.0)])
+        logdet = np.linalg.slogdet(M_trial.T @ M_trial + doe.AUGMENT_RIDGE * np.eye(M_trial.shape[1]))[1]
+        if logdet > best_logdet:    # strictly larger: ties go to the first candidate found
+            best, best_logdet = i, logdet
+
+    # Add the winner, then record how many terms the runs can now estimate
+    chosen.append(best)
+    current, batch = np.vstack([current, candidates[best]]), np.append(batch, 1.0)
+    M_now = np.column_stack([np.ones(len(current))] + [np.prod(current[:, idx], axis=1) for idx in term_index]
+                            + [batch])
+    rank_path.append(int(np.linalg.matrix_rank(M_now)))
+    logdet_path.append(best_logdet)
+
 added = [cand_rows[i] for i in chosen]
 print("added, as standard-order rows of the 2^5:", added)
 print("rank after each addition:", rank_path)
@@ -830,17 +960,24 @@ The rank climbs by one with every early addition, then stops at 17, the number o
 each run adds precision instead of new terms. Both phases, drawn:
 """)
 code(r'''
-full_at = rank_path.index(17) if 17 in rank_path else None
+total_runs = 6 + np.arange(1, N_ADD + 1)                # runs in the design after each addition
+full_at = rank_path.index(17)                           # the addition at which every term is estimable
+
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.6))
-n_tot = 6 + np.arange(1, N_ADD + 1)
-axes[0].step(np.r_[6, n_tot], [np.linalg.matrix_rank(M_full)] + rank_path, where="post", color="tab:blue"); axes[0].axhline(17, color="gray", ls="--", lw=1)
-axes[0].set_xlabel("total runs"); axes[0].set_ylabel("rank of M"); axes[0].set_title("estimable terms")
-full = n_tot[full_at:]
-axes[1].plot(full, logdet_path[full_at:], "o-", color="tab:blue")
-axes[1].set_xlabel("total runs"); axes[1].set_ylabel("log det(M'M)"); axes[1].set_title("precision, once full rank")
-plt.tight_layout(); plt.show()
+start_rank = np.linalg.matrix_rank(M_full)              # the six runs before anything is added
+axes[0].step(np.r_[6, total_runs], [start_rank] + rank_path, where="post", color="tab:blue")
+axes[0].axhline(17, color="gray", ls="--", lw=1)
+axes[0].set_xlabel("total runs")
+axes[0].set_ylabel("rank of M")
+axes[0].set_title("estimable terms")
+axes[1].plot(total_runs[full_at:], logdet_path[full_at:], "o-", color="tab:blue")
+axes[1].set_xlabel("total runs")
+axes[1].set_ylabel("log det(M'M)")
+axes[1].set_title("precision, once full rank")
+plt.tight_layout()
+plt.show()
 print(f"Figure: left, the rank of the 17-column model matrix as runs are added to the six existing ones; it "
-      f"reaches 17 at {full[0]} runs, the dashed line. Right, from then on, log det(M'M) rises from "
+      f"reaches 17 at {total_runs[full_at]} runs, the dashed line. Right, from then on, log det(M'M) rises from "
       f"{logdet_path[full_at]:.1f} to {logdet_path[-1]:.1f} as the remaining runs sharpen the estimates.")
 ''')
 
@@ -850,22 +987,32 @@ half fraction would cost. Both spend 16 new runs. The half fraction throws away 
 fits 16 terms to 16 runs, leaving nothing to estimate error; the augmented design keeps them.
 """)
 code(r'''
+# The augmented design: the six old runs plus the 16 chosen, with their yields from the table
 rows_aug = ofat + added
+X_aug, y_aug = X[rows_aug], y[rows_aug]
 batch_aug = np.r_[-np.ones(6), np.ones(N_ADD)]
-M_aug = np.column_stack([np.ones(len(rows_aug))] + [np.prod(X[rows_aug][:, ix], axis=1) for ix in term_idx] + [batch_aug])
+M_aug = np.column_stack([np.ones(len(rows_aug))] + [np.prod(X_aug[:, idx], axis=1) for idx in term_index]
+                        + [batch_aug])
+
+# Fit it
 XtX_inv = np.linalg.inv(M_aug.T @ M_aug)
-beta_aug = XtX_inv @ M_aug.T @ y[rows_aug]
+beta_aug = XtX_inv @ M_aug.T @ y_aug
 df_aug = len(rows_aug) - M_aug.shape[1]
-s_aug = np.sqrt(((y[rows_aug] - M_aug @ beta_aug) ** 2).sum() / df_aug)
-se_main = 2 * np.sqrt(np.diag(XtX_inv)[1:6])                 # effect SE in units of sigma
+s_aug = np.sqrt(((y_aug - M_aug @ beta_aug) ** 2).sum() / df_aug)    # residual standard deviation
+
+# Precision: main-effect SEs in units of sigma, and D-efficiency (1 for an orthogonal design)
+se_main = 2 * np.sqrt(np.diag(XtX_inv)[1:6])
 d_eff = np.exp(np.linalg.slogdet(M_aug.T @ M_aug)[1] / M_aug.shape[1]) / len(rows_aug)
 print(f"{len(rows_aug)} runs, {M_aug.shape[1]} terms, {df_aug} residual degrees of freedom, residual sd {s_aug:.3f}")
-print(f"main-effect SE / sigma: augmented {se_main.min():.3f} to {se_main.max():.3f};  fresh half fraction {2 / 4:.3f} with 0 df")
+print(f"main-effect SE / sigma: augmented {se_main.min():.3f} to {se_main.max():.3f};  "
+      f"fresh half fraction {2 / 4:.3f} with 0 df")
 print(f"D-efficiency {d_eff:.3f} (an orthogonal design scores 1)\n")
+
 print(f"{'term':6} {'estimate':>9} {'true':>6}")
-for k, w in enumerate(["intercept"] + words2[:6]):
-    print(f"{w:6} {beta_aug[k]:9.2f} {doe.REACTOR_TRUTH.get(w, 0.0):6.2f}")
-print(f"block  {beta_aug[-1]:9.2f} {0.0:6.2f}   (SE {s_aug * np.sqrt(XtX_inv[-1, -1]):.2f}; this table has no real batch shift)")
+for k, name in enumerate(["intercept"] + terms[:6]):
+    print(f"{name:6} {beta_aug[k]:9.2f} {doe.REACTOR_TRUTH.get(name, 0.0):6.2f}")
+block_se = s_aug * np.sqrt(XtX_inv[-1, -1])
+print(f"block  {beta_aug[-1]:9.2f} {0.0:6.2f}   (SE {block_se:.2f}; this table has no real batch shift)")
 ''')
 
 md(r"""
@@ -889,17 +1036,25 @@ The fold-over, on the eight-run quarter fraction ($D = AB$, $E = AC$) that misle
 `factorial_designs.ipynb`. Predict what happens to its estimate of D.
 """)
 code(r'''
-quarter = (X[:, 3] == X[:, 0] * X[:, 1]) & (X[:, 4] == X[:, 0] * X[:, 2])
-mirror = np.array([[(-X[i] == X[j]).all() for j in range(32)] for i in np.where(quarter)[0]]).argmax(axis=1)
-both = np.where(quarter)[0].tolist() + mirror.tolist()
-Xb, yb = X[both], y[both]
-mains = Xb.T
-twos = np.array([np.prod(Xb[:, ["ABCDE".index(ch) for ch in w]], axis=1) for w in words2[5:]])
-worst_corr = np.abs(mains @ twos.T / len(both)).max()
-d_quarter = y[quarter][X[quarter, 3] > 0].mean() - y[quarter][X[quarter, 3] < 0].mean()
-d_folded = yb[Xb[:, 3] > 0].mean() - yb[Xb[:, 3] < 0].mean()
+# The quarter fraction: the corners where D = AB and E = AC
+in_quarter = (X[:, 3] == X[:, 0] * X[:, 1]) & (X[:, 4] == X[:, 0] * X[:, 2])
+quarter_rows = np.where(in_quarter)[0].tolist()
+
+# The fold-over: for each of those runs, the corner with every sign flipped
+mirror = [int(np.where((X == -X[i]).all(axis=1))[0][0]) for i in quarter_rows]
+X_both, y_both = X[quarter_rows + mirror], y[quarter_rows + mirror]
+
+# In the 16 runs together, is any main effect still tangled with a two-factor interaction?
+mains = X_both.T                                                        # 5 main-effect columns
+twos = np.array([np.prod(X_both[:, idx], axis=1) for idx in term_index[5:]])   # 10 interaction columns
+worst_corr = np.abs(mains @ twos.T / len(y_both)).max()
+
+# The D (stirring) effect three ways: high-D mean minus low-D mean
+y_quarter, D_quarter = y[in_quarter], X[in_quarter, 3]
+d_quarter = y_quarter[D_quarter > 0].mean() - y_quarter[D_quarter < 0].mean()
+d_folded = y_both[X_both[:, 3] > 0].mean() - y_both[X_both[:, 3] < 0].mean()
 d_full = y[X[:, 3] > 0].mean() - y[X[:, 3] < 0].mean()
-print(f"quarter fraction rows {np.where(quarter)[0].tolist()}, fold-over rows {mirror.tolist()}")
+print(f"quarter fraction rows {quarter_rows}, fold-over rows {mirror}")
 print(f"largest correlation between a main effect and a two-factor interaction in the 16 runs: {worst_corr:.1f}")
 print(f"D effect: quarter fraction {d_quarter:+.2f}, after fold-over {d_folded:+.2f}, full factorial {d_full:+.2f}")
 ''')
@@ -912,9 +1067,10 @@ from four replicates; the true $\sigma$ is known here, so we can see what the ch
 really delivered.
 """)
 code(r'''
+# The same exact-power calculation as step 2, with the true sigma in place of the planning value
 true_sigma = doe.REACTOR_SIGMA
-se_true = 2 * true_sigma / np.sqrt(32)
-power_true = stats.nct.sf(tc36, df36, DELTA / se_true) + stats.nct.cdf(-tc36, df36, DELTA / se_true)
+shift_true = DELTA / (2 * true_sigma / np.sqrt(32))
+power_true = stats.nct.sf(t_crit36, df36, shift_true) + stats.nct.cdf(-t_crit36, df36, shift_true)
 print("true model in coded units:", doe.REACTOR_TRUTH, "  true sigma:", true_sigma)
 print(f"pilot s {s:.3f}, planning sigma {sigma_plan:.3f}, true sigma {true_sigma}")
 print(f"power of the 36-run design at DELTA: planned {power36:.3f}, actual {power_true:.3f}")
@@ -952,26 +1108,35 @@ Every number above was computed by hand. `orteach.doe` holds each calculation on
 go through `coefficients` too, with C, D and E as columns of zeros.
 """)
 code(r'''
+# Steps 1 and 2
 pkg_int = doe.sigma_interval(y_center)
 pkg_plan = doe.sigma_bound(y_center, PLAN_CONF)
 pkg_N = doe.runs_needed(DELTA, pkg_plan, ALPHA, TARGET)
-pkg_se36 = doe.effect_se(D36[:, 0], pkg_plan)
+pkg_se36 = doe.effect_se(design36[:, 0], pkg_plan)
 pkg_power36 = doe.power(DELTA, pkg_se36, df36, ALPHA)
-ladder_cols = [np.tile([-1.0, 0.0, 1.0], 243)] + [np.r_[np.tile([-1.0, 1.0], nf // 2), np.zeros(nc)]
-                                                  for _, nf, nc, _, _ in ladder[1:]]
-pkg_ladder = [(doe.power(DELTA, doe.effect_se(c, pkg_plan), r[3], ALPHA),
-               doe.power(2 * DELTA, doe.effect_se(c, pkg_plan), r[3], ALPHA)) for c, r in zip(ladder_cols, ladder_rows)]
+
+# Step 3: each rung's A column (the 3^5 has a third of its runs at 0), then its power at DELTA and 2 DELTA
+center_counts = [4, 4, 4, 8, 4]
+rung_columns = [np.tile([-1.0, 0.0, 1.0], 243)] + [np.r_[np.tile([-1.0, 1.0], (r["runs"] - nc) // 2), np.zeros(nc)]
+                                                   for r, nc in zip(ladder[1:], center_counts)]
+pkg_ladder = [(doe.power(DELTA, doe.effect_se(col, pkg_plan), r["df"], ALPHA),
+               doe.power(2 * DELTA, doe.effect_se(col, pkg_plan), r["df"], ALPHA))
+              for col, r in zip(rung_columns, ladder)]
+
+# Steps 4 to 6
 pkg_drift = doe.effects(X, y + DRIFT * time_std, max_order=1)
 pkg_plain = doe.effects(X, y, max_order=1)
-pkg_added = [cand_rows[i] for i in doe.augment(Xo, candidates, words2, N_ADD)]
-pkg_M_aug = np.column_stack([doe.model_matrix(X[rows_aug], words2), batch_aug])
-X_log = np.column_stack([A_log, B_log, np.zeros((N_LOG, 3))])
+pkg_added = [cand_rows[i] for i in doe.augment(X_ofat, candidates, terms, N_ADD)]
+pkg_M_aug = np.column_stack([doe.model_matrix(X_aug, terms), batch_aug])
+X_log = np.column_stack([A_log, B_log, np.zeros((N_LOG, 3))])      # C, D, E as columns of zeros
 pkg_log = [doe.coefficients(X_log, y_log, ["A"])["A"], doe.coefficients(X_log, y_log, ["A", "B"])["A"],
            doe.coefficients(X, y, ["A"])["A"], doe.coefficients(X, y, ["A", "B"])["A"]]
+
+# The second response
 pkg_plan_p = doe.sigma_bound(purity[32:], PLAN_CONF)
 pkg_N_p = doe.runs_needed(DELTA_P, pkg_plan_p, ALPHA, TARGET)
-pkg_power36_p = doe.power(DELTA_P, doe.effect_se(D36[:, 0], pkg_plan_p), df36, ALPHA)
-pkg_purity = doe.coefficients(X, purity[:32], words2)
+pkg_power36_p = doe.power(DELTA_P, doe.effect_se(design36[:, 0], pkg_plan_p), df36, ALPHA)
+pkg_purity = doe.coefficients(X, purity[:32], terms)
 print(f"sigma: s {pkg_int.s:.3f}, 95% interval {pkg_int.lower:.3f} to {pkg_int.upper:.3f}, plan {pkg_plan:.3f}")
 print(f"runs needed {pkg_N:.1f}; 36-run design power {pkg_power36:.3f}")
 print("augmentation adds", pkg_added)
@@ -991,17 +1156,18 @@ Carlo error, in step 2.
 code(r'''
 assert pkg_added == added, "the package augments with different runs"
 assert (pkg_M_aug == M_aug).all(), "the package builds a different model matrix"
-checks = [("s", s, pkg_int.s), ("sigma lower", sig_lo, pkg_int.lower), ("sigma upper", sig_hi, pkg_int.upper),
+# Each check: (what, hand calculation, package)
+checks = [("s", s, pkg_int.s), ("sigma lower", sigma_low, pkg_int.lower), ("sigma upper", sigma_high, pkg_int.upper),
           ("sigma plan", sigma_plan, pkg_plan), ("runs needed", N_needed, pkg_N),
           ("SE, 36 runs", se36, pkg_se36), ("power, 36 runs", power36, pkg_power36),
           ("D-efficiency", d_eff, doe.d_efficiency(pkg_M_aug)), ("log det", logdet_path[-1], doe.log_det(pkg_M_aug))]
-for r, (p1, p2) in zip(ladder_rows, pkg_ladder):
-    checks += [(f"{r[0]} power", r[4], p1), (f"{r[0]} power x2", r[5], p2)]
+for rung, (p_delta, p_2delta) in zip(ladder, pkg_ladder):
+    checks += [(f"{rung['name']} power", rung["power"], p_delta), (f"{rung['name']} power x2", rung["power_2x"], p_2delta)]
 checks += [(f"drift bias {f}", bias_std[f], pkg_drift[f] - pkg_plain[f]) for f in "ABCDE"]
 checks += [(f"temperature coefficient, {label}", fits[label][0][1], p) for label, p in zip(fits, pkg_log)]
-checks += [("purity sigma plan", sigma_plan_p, pkg_plan_p), ("purity runs needed", N_needed_p, pkg_N_p),
-           ("purity power, 36 runs", power36_p, pkg_power36_p)]
-checks += [(f"purity {w}", B_joint[1 + i, 1], pkg_purity[w]) for i, w in enumerate(words2)]
+checks += [("purity sigma plan", sigma_plan_purity, pkg_plan_p), ("purity runs needed", N_needed_purity, pkg_N_p),
+           ("purity power, 36 runs", power36_purity, pkg_power36_p)]
+checks += [(f"purity {name}", coef_both[1 + i, 1], pkg_purity[name]) for i, name in enumerate(terms)]
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} numbers compared, plus the augmentation order and the model matrix")
 assert worst < AGREEMENT_RTOL, f"notebook and package disagree by {worst:.2e}"
@@ -1025,7 +1191,7 @@ md(r"""
 - In the logged runs of step 5, set `RHO` to 0 and then to 0.95, and re-run. How do the
   temperature-only slope, $\delta$ and the standard-error inflation move? At what correlation would
   you stop trusting the regression with catalyst included?
-- Augment the six one-factor-at-a-time runs for a main-effects-only model (`words2[:5]`) instead.
+- Augment the six one-factor-at-a-time runs for a main-effects-only model (`terms[:5]`) instead.
   How many runs does it take to reach full rank, and what does the D-efficiency say about the result?
 - Your own study: write down the factors and their levels, then go down the six steps. Where does
   your plan stop, and why?

@@ -33,7 +33,7 @@ can adapt it to your own problem instead of following a recipe.
 | 2 | How many runs, and how many replicates? | About $31(\sigma/\Delta)^2$ runs *in total* for 80% power. In a factorial every run informs every effect, so many factors need few or no replicates. |
 | 3 | What do I cut first, then second, then third? | Two levels plus center points; then replicate only the center; then a fraction, which costs power and aliasing. |
 | 4 | In what order do I run them? | Randomize the order, and block anything you cannot keep constant. |
-| 5 | Can I use the runs I already have? | Code them and check what they can estimate: the rank of the model matrix. |
+| 5 | Can I use the runs I already have? | Code them and check what they can estimate: the rank of the model matrix. If nobody designed them, check whether the factors moved together: a regression on such runs shows association, not cause. |
 | 6 | What runs do I add? | The ones that most sharpen the model you want (D-optimal augmentation), with a block term for the new batch. |
 
 Two companion notebooks go deeper. `factorial_designs.ipynb` is the full treatment of effects,
@@ -506,6 +506,141 @@ Six runs, six independent columns: the main-effects model is **saturated**. Ever
 estimating a coefficient, none is left to estimate noise, and no interaction can be estimated at
 all. Interactions are not ruled out by these runs. They are invisible to them.
 
+### A second taste of theory: a regression line is not an experiment
+
+Often the runs you already have were not designed at all: months of production logs, or every batch
+anyone ever made. You can fit a regression line through them, and it will look like the factorial
+analysis, because it *is* the same least squares. What differs is where the $x$ values came from,
+and that decides whether a coefficient measures a cause or only an association.
+
+Suppose yield depends on temperature A and catalyst B, and you regress yield on A alone. The slope
+you get is
+
+$$\hat b_A \;=\; \hat\beta_A \;+\; \hat\beta_B\,\delta, \qquad \delta = \text{the slope of B on A in your runs,}$$
+
+where $\hat\beta_A$ and $\hat\beta_B$ come from the regression on both. This is the **omitted-variable
+bias**, and it is "correlation is not causation" written as a formula: the slope on A measures
+temperature's own effect only when $\delta = 0$, when catalyst did not move with temperature. There
+are three ways to get $\delta = 0$.
+
+- **Measure B and put it in the model.** That works only for variables someone recorded, and when A
+  and B moved together it costs precision: each standard error grows by $1/\sqrt{1-r^2}$, where $r$
+  is their correlation.
+- **Set A and B yourself, in a pattern that keeps them uncorrelated.** In a factorial every pair of
+  columns is orthogonal, so $\delta = 0$ by construction, and A's coefficient does not change when B
+  enters or leaves the model.
+- **Randomize.** For variables nobody measured, such as the drift in step 4, a random run order makes
+  their $\delta$ zero on average. It is the only one of the three that protects against what you did
+  not think of.
+
+The log below is 40 historical runs simulated from the reactor's true model (the answer key at the
+end states it in full; temperature's true coefficient is 6). The operators raised the catalyst
+whenever they raised the temperature, because they believed both helped, and held the other three
+factors at their middle settings. Predict: will the slope of yield on temperature come out above 6
+or below it, and roughly by how much?
+""")
+code(r'''
+TRUTH = doe.REACTOR_TRUTH
+SEED_LOG, N_LOG, RHO = 1119, 40, 0.8      # RHO: how closely the operators tied catalyst to temperature
+rng_log = np.random.default_rng(SEED_LOG)
+A_log = rng_log.uniform(-1, 1, N_LOG)
+B_log = np.clip(RHO * A_log + rng_log.normal(0, 0.3, N_LOG), -1, 1)
+y_log = (TRUTH["intercept"] + TRUTH["A"] * A_log + TRUTH["B"] * B_log + TRUTH["AB"] * A_log * B_log
+         + TRUTH["AA"] * A_log**2 + rng_log.normal(0, doe.REACTOR_SIGMA, N_LOG))   # C, D, E at 0
+r_AB = np.corrcoef(A_log, B_log)[0, 1]
+print(f"{N_LOG} logged runs, seed {SEED_LOG}; correlation of temperature and catalyst r = {r_AB:.2f}\n")
+fits = {}
+for label, M_fit, yy in [("log: temperature only", np.column_stack([np.ones(N_LOG), A_log]), y_log),
+                         ("log: temperature + catalyst", np.column_stack([np.ones(N_LOG), A_log, B_log]), y_log),
+                         ("design: temperature only", np.column_stack([np.ones(len(y)), X[:, 0]]), y),
+                         ("design: temperature + catalyst", np.column_stack([np.ones(len(y)), X[:, :2]]), y)]:
+    b_fit = np.linalg.solve(M_fit.T @ M_fit, M_fit.T @ yy)
+    df_fit = len(yy) - M_fit.shape[1]
+    s2_fit = np.sum((yy - M_fit @ b_fit) ** 2) / df_fit
+    se_fit = np.sqrt(s2_fit * np.diag(np.linalg.inv(M_fit.T @ M_fit)))
+    ci_half = stats.t.ppf(1 - ALPHA / 2, df_fit) * se_fit[1]
+    fits[label] = (b_fit, b_fit[1] - ci_half, b_fit[1] + ci_half)
+    print(f"{label:31} temperature coefficient {b_fit[1]:5.2f}, 95% CI {b_fit[1] - ci_half:5.2f} to {b_fit[1] + ci_half:5.2f}")
+''')
+
+md(r"""
+Now check the formula on these runs: the slope of catalyst on temperature, $\delta$, and what it
+predicts for the temperature-only slope. In the design, the same $\delta$ is the slope of the B
+column on the A column.
+""")
+code(r'''
+M_delta = np.column_stack([np.ones(N_LOG), A_log])
+delta = np.linalg.solve(M_delta.T @ M_delta, M_delta.T @ B_log)[1]
+b_short = fits["log: temperature only"][0][1]
+b_long = fits["log: temperature + catalyst"][0]
+ovb = b_long[1] + b_long[2] * delta
+print(f"delta in the log = {delta:.3f}")
+print(f"formula: {b_long[1]:.3f} + {b_long[2]:.3f} x {delta:.3f} = {ovb:.3f};  temperature-only slope {b_short:.3f}  "
+      f"(difference {abs(ovb - b_short):.1e})")
+print(f"what the truth predicts: {TRUTH['A']} + {TRUTH['B']} x {delta:.3f} = {TRUTH['A'] + TRUTH['B'] * delta:.3f}")
+print(f"standard-error inflation from r = {r_AB:.2f}: 1/sqrt(1 - r^2) = {1 / np.sqrt(1 - r_AB**2):.2f}")
+delta_design = (X[:, 0] @ X[:, 1]) / (X[:, 0] @ X[:, 0])
+print(f"delta in the design = {delta_design:.1f}: temperature's coefficient is "
+      f"{fits['design: temperature only'][0][1]:.3f} without catalyst and "
+      f"{fits['design: temperature + catalyst'][0][1]:.3f} with it")
+''')
+
+md(r"""
+The picture: the logged runs coloured by catalyst, with the fitted line and a line at temperature's
+true slope; and the four estimates of temperature's coefficient with their 95% intervals.
+""")
+code(r'''
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+sc = axes[0].scatter(A_log, y_log, c=B_log, cmap="coolwarm", vmin=-1, vmax=1, edgecolor="black", lw=0.4)
+grid = np.linspace(-1, 1, 50)
+axes[0].plot(grid, fits["log: temperature only"][0][0] + b_short * grid, color="black", label=f"fitted slope {b_short:.1f}")
+axes[0].plot(grid, y_log.mean() + TRUTH["A"] * (grid - A_log.mean()), color="gray", ls="--", label=f"true slope {TRUTH['A']}")
+axes[0].set_xlabel("temperature (coded)"); axes[0].set_ylabel("yield"); axes[0].legend(loc="upper left")
+fig.colorbar(sc, ax=axes[0], label="catalyst (coded)")
+labels = list(fits)
+for i, label in enumerate(labels):
+    b_fit, lo, hi = fits[label]
+    axes[1].errorbar(b_fit[1], i, xerr=[[b_fit[1] - lo], [hi - b_fit[1]]], fmt="o", color="black", capsize=4)
+axes[1].axvline(TRUTH["A"], color="gray", ls="--")
+axes[1].set_yticks(range(len(labels))); axes[1].set_yticklabels(labels); axes[1].invert_yaxis()
+axes[1].set_xlabel("temperature coefficient, 95% CI")
+plt.tight_layout(); plt.show()
+outside = [label for label in labels if not fits[label][1] <= TRUTH["A"] <= fits[label][2]]
+print(f"Figure: left, {N_LOG} logged runs of yield against temperature, coloured by catalyst, which rises with "
+      f"temperature (r = {r_AB:.2f}); the fitted line has slope {b_short:.2f} against a true {TRUTH['A']}. Right, the "
+      f"temperature coefficient from each of four regressions with its 95% interval; intervals that miss the "
+      f"true value: {outside if outside else 'none'}.")
+''')
+
+md(r"""
+**The log's line is tight, and wrong.** Its slope is 9.34, and its 95% interval, 8.39 to 10.29, does
+not reach 6. More runs of the same kind would only narrow the interval around the wrong number. The
+formula accounts for the whole gap, to the last digit: in the log, catalyst rose 0.799 coded units for
+every unit of temperature, so catalyst's own effect rode along on temperature's slope. Nothing in the
+fit says so. The line passes close to every point; it simply answers "what yield goes with a high
+temperature here?", not "what does raising the temperature do?".
+
+**Putting catalyst in the model removes the bias, and costs precision.** The coefficient falls to
+6.29, but with $r = 0.85$ each standard error is 1.92 times what it would be had temperature and
+catalyst varied independently. And it worked only because someone recorded the catalyst.
+
+**The designed runs give the same coefficient, 5.847, with or without catalyst in the model,**
+because the factorial set the two independently and $\delta$ is zero. The temperature-only interval
+is wider there only because its residual still holds every other factor's effect; it is centred in
+the right place.
+
+So, for runs you already have that nobody designed:
+
+- Use them for what they can give: a first look at which factors matter, and perhaps an estimate of
+  $\sigma$. Do not read their coefficients as effects.
+- Before fitting anything, compute the correlations between the factor columns. Two factors that
+  moved together cannot be separated by those runs, however many there are.
+- Break the tie with new runs. Step 6 does this without being told: for two columns,
+  $\det(M^\top M)$ is proportional to $1 - r^2$, so D-optimal augmentation favours runs that
+  decorrelate them. Give the old runs their own block, as step 6 does.
+- Anything unrecorded that changed over the logged period, such as a new supplier, a season or an
+  operator, cannot be separated at all. Only new, randomized runs protect against that.
+
 ---
 
 ## Step 6: choose the runs to add
@@ -661,7 +796,9 @@ cover it.
 3. Cut in this order: two levels plus center points, replicate only the center, then a fraction if
    the effects that matter are large enough or you plan to augment.
 4. Randomize the run order; block known nuisances; recognise split plots and repeated measures.
-5. Code what you already have, and check the rank of the model it must support.
+5. Code what you already have, and check the rank of the model it must support. If those runs were
+   not designed, check how the factors are correlated in them: a regression slope there is
+   $\beta_A + \beta_B\delta$, an association, until new runs set the factors independently.
 6. Add the runs that most increase $\det(M^\top M)$, with a block term; fold over a screen, add axial
    points for curvature.
 
@@ -671,8 +808,9 @@ cover it.
 
 Every number above was computed by hand. `orteach.doe` holds each calculation once:
 `sigma_interval`, `sigma_bound`, `runs_needed`, `effect_se`, `power`, `model_matrix`, `log_det`,
-`augment` and `d_efficiency`, alongside `effects` from the factorial notebook. `effect_se` takes the
-coded column itself, so a center run's 0 visibly adds nothing.
+`augment` and `d_efficiency`, alongside `effects` and `coefficients` from the factorial notebook.
+`effect_se` takes the coded column itself, so a center run's 0 visibly adds nothing. The logged runs
+go through `coefficients` too, with C, D and E as columns of zeros.
 """)
 code(r'''
 pkg_int = doe.sigma_interval(y_center)
@@ -688,6 +826,9 @@ pkg_drift = doe.effects(X, y + DRIFT * time_std, max_order=1)
 pkg_plain = doe.effects(X, y, max_order=1)
 pkg_added = [cand_rows[i] for i in doe.augment(Xo, candidates, words2, N_ADD)]
 pkg_M_aug = np.column_stack([doe.model_matrix(X[rows_aug], words2), batch_aug])
+X_log = np.column_stack([A_log, B_log, np.zeros((N_LOG, 3))])
+pkg_log = [doe.coefficients(X_log, y_log, ["A"])["A"], doe.coefficients(X_log, y_log, ["A", "B"])["A"],
+           doe.coefficients(X, y, ["A"])["A"], doe.coefficients(X, y, ["A", "B"])["A"]]
 print(f"sigma: s {pkg_int.s:.3f}, 95% interval {pkg_int.lower:.3f} to {pkg_int.upper:.3f}, plan {pkg_plan:.3f}")
 print(f"runs needed {pkg_N:.1f}; 36-run design power {pkg_power36:.3f}")
 print("augmentation adds", pkg_added)
@@ -698,7 +839,8 @@ md(r"""
 ## The agreement assertion
 
 The augmentation must choose the same runs in the same order, and every interval, run count,
-standard error, power, drift bias and determinant must agree with the hand calculation. It is the
+standard error, power, drift bias, determinant and regression coefficient must agree with the hand
+calculation. It is the
 same arithmetic on the same table, so agreement to `AGREEMENT_RTOL` is what must hold. The
 simulation is not in this list: it checked the power formula statistically, against its own Monte
 Carlo error, in step 2.
@@ -713,6 +855,7 @@ checks = [("s", s, pkg_int.s), ("sigma lower", sig_lo, pkg_int.lower), ("sigma u
 for r, (p1, p2) in zip(ladder_rows, pkg_ladder):
     checks += [(f"{r[0]} power", r[4], p1), (f"{r[0]} power x2", r[5], p2)]
 checks += [(f"drift bias {f}", bias_std[f], pkg_drift[f] - pkg_plain[f]) for f in "ABCDE"]
+checks += [(f"temperature coefficient, {label}", fits[label][0][1], p) for label, p in zip(fits, pkg_log)]
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} numbers compared, plus the augmentation order and the model matrix")
 assert worst < AGREEMENT_RTOL, f"notebook and package disagree by {worst:.2e}"
@@ -730,6 +873,9 @@ md(r"""
   How much of the experiment did six more pilot runs buy back?
 - Re-run step 4 with the drift made quadratic in time instead of linear. Does the standard order
   still dump it on E? Which effect does it land on now?
+- In the logged runs of step 5, set `RHO` to 0 and then to 0.95, and re-run. How do the
+  temperature-only slope, $\delta$ and the standard-error inflation move? At what correlation would
+  you stop trusting the regression with catalyst included?
 - Augment the six one-factor-at-a-time runs for a main-effects-only model (`words2[:5]`) instead.
   How many runs does it take to reach full rank, and what does the D-efficiency say about the result?
 - Your own study: write down the factors and their levels, then go down the six steps. Where does

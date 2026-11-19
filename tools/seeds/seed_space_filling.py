@@ -94,11 +94,15 @@ SEED = 2026
 N, D = 16, 2
 print("seed:", SEED, f"   {N} runs in {D} dimensions")
 rng = np.random.default_rng(SEED)
-P = np.empty((N, D))
+
+# Build the design one factor (column) at a time
+P = np.empty((N, D))                       # N runs, each a point in the unit square
 for j in range(D):
     perm = rng.permutation(N)              # which of the N bins each run takes, for this factor
     jitter = rng.random(N)                 # where inside its bin the run sits
     P[:, j] = (perm + jitter) / N
+
+# Check the rule: each factor should use every one of its N bins exactly once
 bins = np.floor(P * N).astype(int)
 print("bins used by factor 1:", sorted(bins[:, 0].tolist()))
 print("bins used by factor 2:", sorted(bins[:, 1].tolist()))
@@ -113,13 +117,20 @@ that axis: the values each factor actually takes.
 """)
 code(r'''
 fig, ax = plt.subplots(figsize=(5.5, 5.5))
-for k in range(N + 1):
-    ax.axhline(k / N, color="lightgray", lw=0.6); ax.axvline(k / N, color="lightgray", lw=0.6)
+for k in range(N + 1):                     # the bin edges
+    ax.axhline(k / N, color="lightgray", lw=0.6)
+    ax.axvline(k / N, color="lightgray", lw=0.6)
 ax.plot(P[:, 0], P[:, 1], "o", color="tab:blue", ms=7)
-ax.plot(P[:, 0], np.full(N, -0.02), "|", color="black", ms=10, clip_on=False)
-ax.plot(np.full(N, -0.02), P[:, 1], "_", color="black", ms=10, clip_on=False)
-ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.set_xticks([]); ax.set_yticks([])
-ax.set_xlabel("factor 1, from 0 to 1"); ax.set_ylabel("factor 2, from 0 to 1"); plt.show()
+ax.plot(P[:, 0], np.full(N, -0.02), "|", color="black", ms=10, clip_on=False)   # projection onto factor 1
+ax.plot(np.full(N, -0.02), P[:, 1], "_", color="black", ms=10, clip_on=False)   # projection onto factor 2
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 1)
+ax.set_aspect("equal")
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_xlabel("factor 1, from 0 to 1")
+ax.set_ylabel("factor 2, from 0 to 1")
+plt.show()
 print(f"Figure: a {N} by {N} grid holding {N} points. Each of the {len(set(bins[:, 0]))} columns and "
       f"{len(set(bins[:, 1]))} rows holds exactly one point, and the tick marks along each axis show "
       f"{len(np.unique(P[:, 0]))} distinct values of each factor.")
@@ -133,10 +144,11 @@ middles of four equal bins and compare two numbers for each design: how many dis
 factor takes, and how close the two nearest runs are.
 """)
 code(r'''
-levels = (np.arange(4) + 0.5) / 4
-F = np.array(list(itertools.product(levels, repeat=2)))
+levels = (np.arange(4) + 0.5) / 4                    # the middles of four equal bins
+F = np.array(list(itertools.product(levels, repeat=2)))   # every combination: a 4 x 4 factorial
 print("factorial: 4 x 4 =", len(F), "runs")
 for name, Q in (("factorial", F), ("Latin hypercube", P)):
+    # Distance between every pair of runs; keep the smallest (each pair counted once)
     diff = Q[:, None, :] - Q[None, :, :]
     dmin = np.sqrt((diff ** 2).sum(axis=2))[np.triu_indices(len(Q), 1)].min()
     print(f"{name:16} distinct values of factor 1: {len(np.unique(Q[:, 0])):2d}   "
@@ -148,13 +160,20 @@ Side by side, with each design's projections under the axes:
 """)
 code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-for ax, (name, Q, mk) in zip(axes, (("4 x 4 factorial", F, "s"), ("16-run Latin hypercube", P, "o"))):
-    ax.plot(Q[:, 0], Q[:, 1], mk, color="tab:blue", ms=7)
-    ax.plot(Q[:, 0], np.full(len(Q), -0.03), "|", color="black", ms=12, clip_on=False)
+for ax, (name, Q, marker) in zip(axes, (("4 x 4 factorial", F, "s"), ("16-run Latin hypercube", P, "o"))):
+    ax.plot(Q[:, 0], Q[:, 1], marker, color="tab:blue", ms=7)
+    ax.plot(Q[:, 0], np.full(len(Q), -0.03), "|", color="black", ms=12, clip_on=False)   # projections
     ax.plot(np.full(len(Q), -0.03), Q[:, 1], "_", color="black", ms=12, clip_on=False)
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.set_title(name)
-    ax.set_xticks([]); ax.set_yticks([]); ax.set_xlabel("factor 1"); ax.set_ylabel("factor 2")
-plt.tight_layout(); plt.show()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_aspect("equal")
+    ax.set_title(name)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel("factor 1")
+    ax.set_ylabel("factor 2")
+plt.tight_layout()
+plt.show()
 print(f"Figure: two designs of {N} runs. Left, a 4 by 4 grid of squares: the tick marks along each axis "
       f"fall on only {len(np.unique(F[:, 0]))} values, with four runs stacked on each. Right, the Latin "
       f"hypercube's circles: {len(np.unique(P[:, 0]))} distinct tick marks along each axis, one per run.")
@@ -176,12 +195,16 @@ runs is farthest apart. The loop below draws 500 and keeps the best. It is a pla
 optimizer, and it is how most software starts.
 """)
 code(r'''
-diag = np.column_stack([(np.arange(N) + 0.5) / N, (np.arange(N) + 0.5) / N])   # also a valid hypercube
-diff = diag[:, None, :] - diag[None, :, :]
-d_diag = np.sqrt((diff ** 2).sum(axis=2))[np.triu_indices(N, 1)].min()
-diff = P[:, None, :] - P[None, :, :]
-d_random = np.sqrt((diff ** 2).sum(axis=2))[np.triu_indices(N, 1)].min()
+# The diagonal: run k in bin k on both axes. It obeys the rule too.
+diag = np.column_stack([(np.arange(N) + 0.5) / N, (np.arange(N) + 0.5) / N])
+pair = np.triu_indices(N, 1)                # every pair of runs, counted once
 
+diff = diag[:, None, :] - diag[None, :, :]
+d_diag = np.sqrt((diff ** 2).sum(axis=2))[pair].min()       # closest pair in the diagonal
+diff = P[:, None, :] - P[None, :, :]
+d_random = np.sqrt((diff ** 2).sum(axis=2))[pair].min()     # closest pair in the random hypercube
+
+# Maximin by plain search: draw TRIES random hypercubes, keep the one whose closest pair is farthest apart
 MM_SEED, TRIES = 7, 500
 print("maximin seed:", MM_SEED, "   tries:", TRIES)
 rng_mm = np.random.default_rng(MM_SEED)
@@ -191,12 +214,16 @@ for t in range(TRIES):
     for j in range(D):
         Q[:, j] = (rng_mm.permutation(N) + rng_mm.random(N)) / N
     diff = Q[:, None, :] - Q[None, :, :]
-    d_min = np.sqrt((diff ** 2).sum(axis=2))[np.triu_indices(N, 1)].min()
-    if d_min > best_d:                     # keep the design whose closest pair is farthest apart
+    d_min = np.sqrt((diff ** 2).sum(axis=2))[pair].min()
+    if d_min > best_d:
         best, best_d = Q, d_min
+
+# Correlation between the two factors in each design: 0 means their effects can be told apart
 r_diag, r_random, r_best = (np.corrcoef(Q[:, 0], Q[:, 1])[0, 1] for Q in (diag, P, best))
-print(f"closest pair:            diagonal {d_diag:.3f}   the random hypercube above {d_random:.3f}   best of {TRIES} {best_d:.3f}")
-print(f"correlation of factors:  diagonal {r_diag:+.3f}   the random hypercube above {r_random:+.3f}   best of {TRIES} {r_best:+.3f}")
+print(f"closest pair:            diagonal {d_diag:.3f}   the random hypercube above {d_random:.3f}   "
+      f"best of {TRIES} {best_d:.3f}")
+print(f"correlation of factors:  diagonal {r_diag:+.3f}   the random hypercube above {r_random:+.3f}   "
+      f"best of {TRIES} {r_best:+.3f}")
 ''')
 
 md(r"""
@@ -206,13 +233,19 @@ code(r'''
 fig, axes = plt.subplots(1, 3, figsize=(13, 4.6))
 panels = (("diagonal", diag, d_diag, r_diag), ("one random hypercube", P, d_random, r_random),
           (f"best of {TRIES}", best, best_d, r_best))
-for ax, (name, Q, dq, rq) in zip(axes, panels):
-    for k in range(N + 1):
-        ax.axhline(k / N, color="lightgray", lw=0.5); ax.axvline(k / N, color="lightgray", lw=0.5)
+for ax, (name, Q, closest, corr) in zip(axes, panels):
+    for k in range(N + 1):                 # the bin edges
+        ax.axhline(k / N, color="lightgray", lw=0.5)
+        ax.axvline(k / N, color="lightgray", lw=0.5)
     ax.plot(Q[:, 0], Q[:, 1], "o", color="tab:blue", ms=6)
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.set_xticks([]); ax.set_yticks([])
-    ax.set_title(f"{name}\nclosest pair {dq:.3f}, correlation {rq:+.2f}")
-plt.tight_layout(); plt.show()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(f"{name}\nclosest pair {closest:.3f}, correlation {corr:+.2f}")
+plt.tight_layout()
+plt.show()
 print(f"Figure: three {N}-run Latin hypercubes on the same grid. Left, the diagonal: points in a line "
       f"from corner to corner, closest pair {d_diag:.3f}, correlation {r_diag:+.2f}, two corners of the square "
       f"empty. Middle, one random hypercube, closest pair {d_random:.3f}, correlation {r_random:+.2f}. Right, "
@@ -238,11 +271,16 @@ the middle of its cell (a **centered** hypercube), which makes the picture easie
 code(r'''
 N3 = 3
 rng3 = np.random.default_rng(SEED)
+
+# A 3-run hypercube in 3 factors, centered: each run at the middle of its cell
 P3 = np.empty((N3, 3))
 for j in range(3):
-    P3[:, j] = (rng3.permutation(N3) + 0.5) / N3      # centered: each run at the middle of its cell
+    P3[:, j] = (rng3.permutation(N3) + 0.5) / N3
+
+# The 3-level factorial: every cell of the same 3 x 3 x 3 grid
 grid3 = np.array(list(itertools.product((np.arange(N3) + 0.5) / N3, repeat=3)))
-print("Latin hypercube runs:", len(P3), "   cells in its grid:", N3 ** 3, "   3-level factorial:", len(grid3), "runs")
+print("Latin hypercube runs:", len(P3), "   cells in its grid:", N3 ** 3,
+      "   3-level factorial:", len(grid3), "runs")
 print("bin of each factor, one row per run:")
 print(np.floor(P3 * N3).astype(int))
 ''')
@@ -260,18 +298,29 @@ axL = fig.add_subplot(1, 2, 2, projection="3d")
 axF.scatter(*grid3.T, s=40, color="gray", marker="s", depthshade=False)
 axF.set_title(f"3 x 3 x 3 factorial: {len(grid3)} runs")
 axL.scatter(*P3.T, s=120, color="tab:blue", depthshade=False)
-for p in P3:                                                    # each run's shadow on the three back walls
+for p in P3:
+    # Its shadow on each back wall: the same point with one coordinate pushed to that wall
     for wall, at in ((0, 0.0), (1, 1.0), (2, 0.0)):
-        s = p.copy(); s[wall] = at
-        axL.scatter(*s, s=50, facecolors="none", edgecolors="tab:blue", depthshade=False)
-        axL.plot(*zip(p, s), color="tab:blue", ls=":", lw=1)
+        shadow = p.copy()
+        shadow[wall] = at
+        axL.scatter(*shadow, s=50, facecolors="none", edgecolors="tab:blue", depthshade=False)
+        axL.plot(*zip(p, shadow), color="tab:blue", ls=":", lw=1)
 axL.set_title(f"3-run Latin hypercube: {len(P3)} runs")
+
+ticks = np.arange(N3 + 1) / N3              # the bin edges, as grid lines on every wall
 for ax in (axF, axL):
-    ticks = np.arange(N3 + 1) / N3
-    ax.set_xticks(ticks); ax.set_yticks(ticks); ax.set_zticks(ticks)
-    ax.set_xticklabels([]); ax.set_yticklabels([]); ax.set_zticklabels([])
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_zlim(0, 1)
-    ax.set_xlabel("factor 1"); ax.set_ylabel("factor 2"); ax.set_zlabel("factor 3")
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_zticks(ticks)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_zlim(0, 1)
+    ax.set_xlabel("factor 1")
+    ax.set_ylabel("factor 2")
+    ax.set_zlabel("factor 3")
     ax.view_init(elev=20, azim=-60)
 plt.show()
 print(f"Figure: two cubes divided into a 3 by 3 by 3 grid. Left, {len(grid3)} gray squares, one in every "
@@ -290,19 +339,29 @@ run in every row and every column.
 code(r'''
 N8 = 8
 rng8 = np.random.default_rng(SEED)
-P8 = np.empty((N8, 3))
+P8 = np.empty((N8, 3))                       # 8 runs, 3 factors
 for j in range(3):
     P8[:, j] = (rng8.permutation(N8) + rng8.random(N8)) / N8
+
 fig, axes = plt.subplots(1, 3, figsize=(12, 4.2))
-full_faces = 0
-for ax, (a, b) in zip(axes, ((0, 1), (0, 2), (1, 2))):
+full_faces = 0                               # faces where every row and column holds exactly one run
+for ax, (a, b) in zip(axes, ((0, 1), (0, 2), (1, 2))):      # each pair of factors
     for k in range(N8 + 1):
-        ax.axhline(k / N8, color="lightgray", lw=0.5); ax.axvline(k / N8, color="lightgray", lw=0.5)
+        ax.axhline(k / N8, color="lightgray", lw=0.5)
+        ax.axvline(k / N8, color="lightgray", lw=0.5)
     ax.plot(P8[:, a], P8[:, b], "o", color="tab:blue")
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.set_xticks([]); ax.set_yticks([])
-    ax.set_xlabel(f"factor {a + 1}"); ax.set_ylabel(f"factor {b + 1}")
-    full_faces += len(set(np.floor(P8[:, a] * N8))) == N8 and len(set(np.floor(P8[:, b] * N8))) == N8
-plt.tight_layout(); plt.show()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel(f"factor {a + 1}")
+    ax.set_ylabel(f"factor {b + 1}")
+    every_column = len(set(np.floor(P8[:, a] * N8))) == N8
+    every_row = len(set(np.floor(P8[:, b] * N8))) == N8
+    full_faces += every_column and every_row
+plt.tight_layout()
+plt.show()
 print(f"Figure: the {N8}-run hypercube in three dimensions seen face-on from each of its three pairs of "
       f"axes. On {full_faces} of the 3 faces every row and every column of the {N8} by {N8} grid holds "
       f"exactly one point.")
@@ -338,11 +397,13 @@ true_mean = D3 * 2 / np.pi
 rng_s = np.random.default_rng(STUDY_SEED)
 est_random, est_lhs = np.empty(REPS), np.empty(REPS)
 for r in range(REPS):
-    R = rng_s.random((N, D3))                                   # 16 plain random points
+    # Estimate 1: the average of f over 16 plain random points
+    R = rng_s.random((N, D3))
     est_random[r] = np.sin(np.pi * R).sum(axis=1).mean()
+    # Estimate 2: the average of f over a 16-run Latin hypercube
     L = np.empty((N, D3))
     for j in range(D3):
-        L[:, j] = (rng_s.permutation(N) + rng_s.random(N)) / N  # a 16-run Latin hypercube
+        L[:, j] = (rng_s.permutation(N) + rng_s.random(N)) / N
     est_lhs[r] = np.sin(np.pi * L).sum(axis=1).mean()
 print(f"true mean {true_mean:.4f}")
 print(f"random points:   mean of estimates {est_random.mean():.4f}   spread (sd) {est_random.std():.4f}")
@@ -359,7 +420,9 @@ edges = np.linspace(min(est_random.min(), est_lhs.min()), max(est_random.max(), 
 ax.hist(est_random, bins=edges, color="tab:orange", alpha=0.6, hatch="//", label="16 random points")
 ax.hist(est_lhs, bins=edges, color="tab:blue", alpha=0.8, label="16-run Latin hypercube")
 ax.axvline(true_mean, color="black", ls="--", label="true mean")
-ax.set_xlabel(f"estimate of the mean from {N} runs"); ax.set_ylabel("repetitions"); ax.legend()
+ax.set_xlabel(f"estimate of the mean from {N} runs")
+ax.set_ylabel("repetitions")
+ax.legend()
 plt.show()
 print(f"Figure: histograms of {REPS} estimates each, centered on the true mean {true_mean:.4f} (dashed). The "
       f"random-point estimates (hatched) spread from {est_random.min():.2f} to {est_random.max():.2f}; the "
@@ -386,7 +449,9 @@ pkg_best, pkg_best_d = doe.maximin_lhs(N, D, TRIES, MM_SEED)
 pkg_P3 = doe.lhs(N3, 3, np.random.default_rng(SEED), centered=True)
 pkg_P8 = doe.lhs(N8, 3, np.random.default_rng(SEED))
 pkg_random, pkg_lhs = doe.sampling_study(N, D3, REPS, STUDY_SEED)
-for name, Q in (("16 runs, 2 factors", pkg_P), ("maximin", pkg_best), ("3 runs, 3 factors", pkg_P3), ("8 runs, 3 factors", pkg_P8)):
+package_designs = (("16 runs, 2 factors", pkg_P), ("maximin", pkg_best),
+                   ("3 runs, 3 factors", pkg_P3), ("8 runs, 3 factors", pkg_P8))
+for name, Q in package_designs:
     print(f"{name:20} Latin: {doe.is_latin(Q)}   closest pair {doe.min_distance(Q):.3f}")
 print(f"{'diagonal':20} Latin: {doe.is_latin(diag)}   closest pair {doe.min_distance(diag):.3f}")
 

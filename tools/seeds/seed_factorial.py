@@ -100,15 +100,20 @@ from orteach.tolerance import AGREEMENT_RTOL, rel_diff
 runs = doe.load_reactor()
 print("generated from seed", doe.REACTOR_SEED)
 print("factors:", doe.FACTOR_NAMES)
-corner = np.array(runs["kind"]) == "factorial"
-X = np.column_stack([np.array(runs[f])[corner] for f in "ABCDE"]).astype(float)
-y = np.array(runs["yield"])[corner]
-y_center = np.array(runs["yield"])[~corner]
-run_order = np.array(runs["run_order"])[corner]
+
+# Split the table: the 32 corner runs, and the 4 runs at the center
+is_corner = np.array(runs["kind"]) == "factorial"
+all_yields = np.array(runs["yield"])
+X = np.column_stack([np.array(runs[f])[is_corner] for f in "ABCDE"]).astype(float)   # one row per corner run
+y = all_yields[is_corner]                    # yield at each corner, in standard order
+y_center = all_yields[~is_corner]            # yield at the four center runs
+run_order = np.array(runs["run_order"])[is_corner]   # the order the corners were actually made in
+
 print(f"\n{len(y)} corner runs and {len(y_center)} center runs. The first eight corners:")
 print(" A B C D E   run order   yield")
 for i in range(8):
-    print(" " + " ".join("+" if v > 0 else "-" for v in X[i]) + f"   {run_order[i]:9d}   {y[i]:5.2f}")
+    signs = " ".join("+" if x > 0 else "-" for x in X[i])
+    print(f" {signs}   {run_order[i]:9d}   {y[i]:5.2f}")
 
 # to try different data, edit a yield here; the change reaches the package check at the bottom:
 # y[5] = 70.0
@@ -127,6 +132,7 @@ is uncorrelated, so $X^\top X$ is diagonal. Orthogonality means each effect is e
 others were not there.
 """)
 code(r'''
+# Every sign pattern of five factors, each row reversed so that A alternates fastest
 design = np.array([row[::-1] for row in itertools.product((-1, 1), repeat=5)], dtype=float)
 print("runs in a 2^5 full factorial:", len(design))
 print("same rows, same order as the table:", bool((design == X).all()))
@@ -148,11 +154,13 @@ Before running this, look at the eight rows printed above and write down which f
 matters most, and whether any will come out near zero.
 """)
 code(r'''
+# Main effect = mean yield at the high setting - mean yield at the low setting
 main = {}
 for j, f in enumerate("ABCDE"):
-    hi, lo = y[X[:, j] > 0].mean(), y[X[:, j] < 0].mean()
-    main[f] = hi - lo
-    print(f"{f} {doe.FACTOR_NAMES[f]:12} mean at +1 {hi:6.2f}   at -1 {lo:6.2f}   effect {main[f]:+6.2f}")
+    mean_high = y[X[:, j] > 0].mean()        # the 16 runs with this factor at +1
+    mean_low = y[X[:, j] < 0].mean()         # the 16 runs with it at -1
+    main[f] = mean_high - mean_low
+    print(f"{f} {doe.FACTOR_NAMES[f]:12} mean at +1 {mean_high:6.2f}   at -1 {mean_low:6.2f}   effect {main[f]:+6.2f}")
 ''')
 
 md(r"""
@@ -165,13 +173,17 @@ directly.
 code(r'''
 fig, axes = plt.subplots(1, 5, figsize=(12, 3), sharey=True)
 for j, (f, ax) in enumerate(zip("ABCDE", axes)):
-    ax.plot([-1, 1], [y[X[:, j] < 0].mean(), y[X[:, j] > 0].mean()], "o-", color="tab:blue")
-    ax.axhline(y.mean(), color="gray", ls=":", lw=1)
-    ax.set_xticks([-1, 1]); ax.set_title(f"{f}: {doe.FACTOR_NAMES[f]}")
+    mean_low, mean_high = y[X[:, j] < 0].mean(), y[X[:, j] > 0].mean()
+    ax.plot([-1, 1], [mean_low, mean_high], "o-", color="tab:blue")
+    ax.axhline(y.mean(), color="gray", ls=":", lw=1)       # the grand mean
+    ax.set_xticks([-1, 1])
+    ax.set_title(f"{f}: {doe.FACTOR_NAMES[f]}")
 axes[0].set_ylabel("mean yield")
-plt.tight_layout(); plt.show()
-steep = max(main, key=lambda f: abs(main[f]))
-flat = min(main, key=lambda f: abs(main[f]))
+plt.tight_layout()
+plt.show()
+
+steep = max(main, key=lambda f: abs(main[f]))              # the largest effect
+flat = min(main, key=lambda f: abs(main[f]))               # the smallest
 print(f"Figure: five panels, each joining the mean yield at a factor's low and high setting. "
       f"{steep} ({doe.FACTOR_NAMES[steep]}) has the steepest line, a change of {main[steep]:+.2f}; "
       f"{flat} ({doe.FACTOR_NAMES[flat]}) is nearly flat at {main[flat]:+.2f}. "
@@ -189,10 +201,15 @@ The same number has a second reading, and this cell computes both: half the diff
 effect when B is high and A's effect when B is low.
 """)
 code(r'''
+# Reading 1: the AB column is A times B; its effect is computed like any main effect
 AB = X[:, 0] * X[:, 1]
 ab_effect = y[AB > 0].mean() - y[AB < 0].mean()
-a_when_b_high = y[(X[:, 0] > 0) & (X[:, 1] > 0)].mean() - y[(X[:, 0] < 0) & (X[:, 1] > 0)].mean()
-a_when_b_low = y[(X[:, 0] > 0) & (X[:, 1] < 0)].mean() - y[(X[:, 0] < 0) & (X[:, 1] < 0)].mean()
+
+# Reading 2: A's effect among the runs with B high, and among the runs with B low
+A_high, A_low = X[:, 0] > 0, X[:, 0] < 0
+B_high, B_low = X[:, 1] > 0, X[:, 1] < 0
+a_when_b_high = y[A_high & B_high].mean() - y[A_low & B_high].mean()
+a_when_b_low = y[A_high & B_low].mean() - y[A_low & B_low].mean()
 print(f"effect of A when B is high {a_when_b_high:+.2f}, when B is low {a_when_b_low:+.2f}")
 print(f"half their difference      {(a_when_b_high - a_when_b_low) / 2:+.2f}")
 print(f"AB effect from its column  {ab_effect:+.2f}")
@@ -207,14 +224,21 @@ cross mean the effect of A depends on it.
 """)
 code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(9, 3.5), sharey=True)
-for ax, k, name in zip(axes, (1, 2), ("B", "C")):
-    for level, style in ((-1, "s--"), (1, "o-")):
-        rows = X[:, k] == level
-        ax.plot([-1, 1], [y[rows & (X[:, 0] < 0)].mean(), y[rows & (X[:, 0] > 0)].mean()], style, label=f"{name} = {level:+d}")
-    ax.set_xticks([-1, 1]); ax.set_xlabel("A (temperature)"); ax.set_title(f"A by {name}"); ax.legend()
+for ax, k, name in zip(axes, (1, 2), ("B", "C")):           # the second factor: B, then C
+    for level, style in ((-1, "s--"), (1, "o-")):           # one line per setting of it
+        at_level = X[:, k] == level
+        means = [y[at_level & A_low].mean(), y[at_level & A_high].mean()]
+        ax.plot([-1, 1], means, style, label=f"{name} = {level:+d}")
+    ax.set_xticks([-1, 1])
+    ax.set_xlabel("A (temperature)")
+    ax.set_title(f"A by {name}")
+    ax.legend()
 axes[0].set_ylabel("mean yield")
-plt.tight_layout(); plt.show()
-ac_effect = y[X[:, 0] * X[:, 2] > 0].mean() - y[X[:, 0] * X[:, 2] < 0].mean()
+plt.tight_layout()
+plt.show()
+
+AC = X[:, 0] * X[:, 2]
+ac_effect = y[AC > 0].mean() - y[AC < 0].mean()
 print(f"Figure: two interaction plots of mean yield against A. Left, one line per setting of B: the "
       f"lines fan apart, because A's effect is {a_when_b_high:+.2f} with B high and {a_when_b_low:+.2f} "
       f"with B low (AB effect {ab_effect:+.2f}). Right, one line per setting of C: the lines are close "
@@ -231,13 +255,19 @@ columns. Thirty-two runs give 32 numbers, and here they are spent on the grand m
 with nothing left over to estimate the noise. The next cell lists the largest.
 """)
 code(r'''
-words = ["".join(c) for r in range(1, 6) for c in itertools.combinations("ABCDE", r)]
+# Every subset of ABCDE, smallest first: "A", ..., "AB", ..., "ABCDE"
+words = ["".join(c) for size in range(1, 6) for c in itertools.combinations("ABCDE", size)]
+
 cols, effect = {}, {}
 for w in words:
-    cols[w] = np.prod(X[:, ["ABCDE".index(ch) for ch in w]], axis=1)   # product of its factors' columns
+    factor_cols = ["ABCDE".index(f) for f in w]
+    cols[w] = np.prod(X[:, factor_cols], axis=1)            # the product of its factors' columns
     effect[w] = y[cols[w] > 0].mean() - y[cols[w] < 0].mean()
-print(len(words), "effects; how many of each order:", {r: sum(len(w) == r for w in words) for r in range(1, 6)})
-ranked = sorted(words, key=lambda w: -abs(effect[w]))
+
+per_order = {size: sum(len(w) == size for w in words) for size in range(1, 6)}
+print(len(words), "effects; how many of each order:", per_order)
+
+ranked = sorted(words, key=lambda w: -abs(effect[w]))      # largest first
 for w in ranked[:8]:
     print(f"  {w:5} {effect[w]:+6.2f}")
 print("  ...")
@@ -260,20 +290,29 @@ the simultaneous margin (SME) is wider, because it allows for looking at 31 effe
 Predict how many effects will clear each margin before you run it.
 """)
 code(r'''
+# The 31 absolute effects, smallest first, and the half-normal quantile each is plotted against
 abs_sorted = np.sort(np.abs([effect[w] for w in words]))
-order = sorted(words, key=lambda w: abs(effect[w]))
-q = stats.norm.ppf(0.5 + 0.5 * (np.arange(1, 32) - 0.5) / 31)    # half-normal plotting positions
+smallest_first = sorted(words, key=lambda w: abs(effect[w]))
+hn_quantile = stats.norm.ppf(0.5 + 0.5 * (np.arange(1, 32) - 0.5) / 31)
+
+# Lenth's method: a noise estimate from the effects themselves
 s0 = 1.5 * np.median(abs_sorted)
-pse = 1.5 * np.median(abs_sorted[abs_sorted < 2.5 * s0])
-me = stats.t.ppf(0.975, 31 / 3) * pse
-sme = stats.t.ppf((1 + 0.95 ** (1 / 31)) / 2, 31 / 3) * pse
+pse = 1.5 * np.median(abs_sorted[abs_sorted < 2.5 * s0])    # pseudo standard error
+me = stats.t.ppf(0.975, 31 / 3) * pse                        # margin of error, one effect at a time
+sme = stats.t.ppf((1 + 0.95 ** (1 / 31)) / 2, 31 / 3) * pse  # simultaneous margin, all 31 at once
+
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
-ax.plot(abs_sorted, q, "o", color="tab:blue")
-for w, a, qq in zip(order[-6:], abs_sorted[-6:], q[-6:]):
-    ax.annotate(w, (a, qq), textcoords="offset points", xytext=(6, -3))
-ax.axvline(me, color="black", ls="--", lw=1); ax.text(me, 0.1, " ME", va="bottom")
-ax.axvline(sme, color="black", ls=":", lw=1); ax.text(sme, 0.4, " SME", va="bottom")
-ax.set_xlabel("|effect|"); ax.set_ylabel("half-normal quantile"); plt.show()
+ax.plot(abs_sorted, hn_quantile, "o", color="tab:blue")
+for w, a, q in zip(smallest_first[-6:], abs_sorted[-6:], hn_quantile[-6:]):   # label the six largest
+    ax.annotate(w, (a, q), textcoords="offset points", xytext=(6, -3))
+ax.axvline(me, color="black", ls="--", lw=1)
+ax.text(me, 0.1, " ME", va="bottom")
+ax.axvline(sme, color="black", ls=":", lw=1)
+ax.text(sme, 0.4, " SME", va="bottom")
+ax.set_xlabel("|effect|")
+ax.set_ylabel("half-normal quantile")
+plt.show()
+
 past_me = [w for w in ranked if abs(effect[w]) > me]
 past_sme = [w for w in ranked if abs(effect[w]) > sme]
 print(f"PSE {pse:.3f}   ME {me:.3f}   SME {sme:.3f}")
@@ -293,9 +332,9 @@ normal equations $M^\top M \beta = M^\top y$. Predict A's coefficient from its e
 this. A coefficient is the change per one coded unit, and $-1$ to $+1$ is two units.
 """)
 code(r'''
-terms = ["A", "B", "C", "D", "E", "AB"]
-M = np.column_stack([np.ones(len(y))] + [cols[w] for w in terms])
-beta = np.linalg.solve(M.T @ M, M.T @ y)
+terms = ["A", "B", "C", "D", "E", "AB"]                   # the columns we believe in
+M = np.column_stack([np.ones(len(y))] + [cols[w] for w in terms])   # intercept, then one column per term
+beta = np.linalg.solve(M.T @ M, M.T @ y)                    # the normal equations
 print(f"{'term':10} {'coefficient':>12} {'effect / 2':>12}")
 print(f"{'intercept':10} {beta[0]:12.4f}   (the mean of all 32 runs is {y.mean():.4f})")
 for w, b in zip(terms, beta[1:]):
@@ -325,20 +364,28 @@ $2^3$ with $C = AB$, drawn on the cube of A, B and C; each corner is labelled wi
 the reactor runs at that corner.
 """)
 code(r'''
+# The 8 corners of the A-B-C cube; the half fraction keeps those where C = AB
 corners = np.array([row[::-1] for row in itertools.product((-1, 1), repeat=3)])
-kept = corners[:, 2] == corners[:, 0] * corners[:, 1]                     # C = AB
+kept = corners[:, 2] == corners[:, 0] * corners[:, 1]
+# Label each corner with the mean yield of the reactor runs there (averaging over D and E)
 avg = [y[(X[:, 0] == a) & (X[:, 1] == b) & (X[:, 2] == c)].mean() for a, b, c in corners]
+
 fig = plt.figure(figsize=(6, 5))
 ax = fig.add_subplot(projection="3d")
 for p1, p2 in itertools.combinations(corners, 2):
-    if np.abs(p1 - p2).sum() == 2:                                       # corners that share an edge
+    if np.abs(p1 - p2).sum() == 2:                          # two corners that share an edge
         ax.plot(*zip(p1, p2), color="lightgray", lw=1)
 ax.scatter(*corners[kept].T, s=140, color="tab:blue", marker="o", depthshade=False, label="kept: C = AB")
-ax.scatter(*corners[~kept].T, s=140, facecolors="none", edgecolors="black", marker="s", depthshade=False, label="dropped")
-for (a, b, c), v in zip(corners, avg):
-    ax.text(a * 1.22, b * 1.22, c * 1.22, f"{v:.1f}", fontsize=10, ha="center")
-ax.text(0, -1.45, -1.25, "A", ha="center"); ax.text(1.45, 0, -1.25, "B", ha="center"); ax.text(-1, -1, 0.15, "C   ", ha="right")
-ax.set_axis_off(); ax.view_init(elev=22, azim=-60); fig.legend(loc="lower center", ncol=2, frameon=False)
+ax.scatter(*corners[~kept].T, s=140, facecolors="none", edgecolors="black", marker="s",
+           depthshade=False, label="dropped")
+for (a, b, c), value in zip(corners, avg):
+    ax.text(a * 1.22, b * 1.22, c * 1.22, f"{value:.1f}", fontsize=10, ha="center")
+ax.text(0, -1.45, -1.25, "A", ha="center")
+ax.text(1.45, 0, -1.25, "B", ha="center")
+ax.text(-1, -1, 0.15, "C   ", ha="right")
+ax.set_axis_off()
+ax.view_init(elev=22, azim=-60)
+fig.legend(loc="lower center", ncol=2, frameon=False)
 plt.show()
 shared_edge = sum(np.abs(p1 - p2).sum() == 2 for p1, p2 in itertools.combinations(corners[kept], 2))
 print(f"Figure: a cube with axes A, B and C. The {kept.sum()} filled circles are the corners where C = AB, "
@@ -357,11 +404,11 @@ that the smaller design is still balanced and orthogonal.
 """)
 code(r'''
 half = X[:, 4] == X[:, 0] * X[:, 1] * X[:, 2] * X[:, 3]        # E = ABCD: this line IS the design
-Xh, yh = X[half], y[half]
+X_half, y_half = X[half], y[half]                                # the 16 runs it keeps
 print("runs kept:", half.sum(), "of", len(y))
-print("column sums:", Xh.sum(axis=0).astype(int))
+print("column sums:", X_half.sum(axis=0).astype(int))
 print("X'X =")
-print((Xh.T @ Xh).astype(int))
+print((X_half.T @ X_half).astype(int))
 ''')
 
 md(r"""
@@ -373,8 +420,8 @@ low_order = words[:15]                                         # 5 main effects 
 effect_half = {}
 print(f"{'':5} {'full (32)':>10} {'half (16)':>10}")
 for w in low_order:
-    c = cols[w][half]
-    effect_half[w] = yh[c > 0].mean() - yh[c < 0].mean()
+    col_half = cols[w][half]                                   # this effect's column, in the 16 runs
+    effect_half[w] = y_half[col_half > 0].mean() - y_half[col_half < 0].mean()
     print(f"{w:5} {effect[w]:+10.2f} {effect_half[w]:+10.2f}")
 ''')
 
@@ -384,12 +431,14 @@ effect and its alias. Find each alias by brute force, as the column that is iden
 runs, and check the sum against the full factorial's two effects.
 """)
 code(r'''
+# An alias of w: any other effect whose column is identical to w's within the 16 runs
 partners_half = {}
 for w in low_order:
     partners_half[w] = [v for v in words if v != w and (cols[v][half] == cols[w][half]).all()]
-    a = partners_half[w][0]
-    print(f"{w:3} = {a:5} full-factorial {w} {effect[w]:+6.2f}  +  {a} {effect[a]:+6.2f}  =  {effect[w] + effect[a]:+6.2f}"
-          f"   half says {effect_half[w]:+6.2f}")
+    alias = partners_half[w][0]
+    total = effect[w] + effect[alias]                  # what the half fraction should report
+    print(f"{w:3} = {alias:5} full-factorial {w} {effect[w]:+6.2f}  +  {alias} {effect[alias]:+6.2f}  =  "
+          f"{total:+6.2f}   half says {effect_half[w]:+6.2f}")
 ''')
 
 md(r"""
@@ -407,14 +456,17 @@ The half fraction put D, stirring, near zero. Predict what the quarter fraction 
 """)
 code(r'''
 quarter = (X[:, 3] == X[:, 0] * X[:, 1]) & (X[:, 4] == X[:, 0] * X[:, 2])   # D = AB and E = AC
-Xq, yq = X[quarter], y[quarter]
+X_quarter, y_quarter = X[quarter], y[quarter]                               # the 8 runs it keeps
 print("runs kept:", quarter.sum())
 print(" A B C D E   yield")
-for row, v in zip(Xq, yq):
-    print(" " + " ".join("+" if s > 0 else "-" for s in row) + f"   {v:5.2f}")
+for settings, value in zip(X_quarter, y_quarter):
+    signs = " ".join("+" if x > 0 else "-" for x in settings)
+    print(f" {signs}   {value:5.2f}")
+
+# Main effects from the 8 runs, the usual way
 effect_quarter = {}
 for j, f in enumerate("ABCDE"):
-    effect_quarter[f] = yq[Xq[:, j] > 0].mean() - yq[Xq[:, j] < 0].mean()
+    effect_quarter[f] = y_quarter[X_quarter[:, j] > 0].mean() - y_quarter[X_quarter[:, j] < 0].mean()
 print("\nmain effects from 8 runs:", "   ".join(f"{f} {v:+.2f}" for f, v in effect_quarter.items()))
 ''')
 
@@ -422,11 +474,13 @@ md(r"""
 Find the aliases of each main effect in the eight runs, the same brute-force way.
 """)
 code(r'''
+# Aliases in the 8 runs: every other effect whose column matches this factor's exactly
 partners_quarter = {}
 for f in "ABCDE":
     partners_quarter[f] = [v for v in words if v != f and (cols[v][quarter] == cols[f][quarter]).all()]
     print(f"{f} = {' = '.join(partners_quarter[f])}")
-print(f"\nfull factorial: D {effect['D']:+.2f}, AB {effect['AB']:+.2f}.   quarter fraction's 'D': {effect_quarter['D']:+.2f}")
+print(f"\nfull factorial: D {effect['D']:+.2f}, AB {effect['AB']:+.2f}.   "
+      f"quarter fraction's 'D': {effect_quarter['D']:+.2f}")
 ''')
 
 md(r"""
@@ -441,14 +495,20 @@ The five main effects from each design, on one chart.
 """)
 code(r'''
 xs = np.arange(5)
+width = 0.27
 fig, ax = plt.subplots(figsize=(8, 4))
-ax.bar(xs - 0.27, [effect[f] for f in "ABCDE"], 0.27, label="full, 32 runs", color="tab:blue")
-ax.bar(xs, [effect_half[f] for f in "ABCDE"], 0.27, label="half, 16 runs", color="tab:orange", hatch="//")
-ax.bar(xs + 0.27, [effect_quarter[f] for f in "ABCDE"], 0.27, label="quarter, 8 runs", color="white", edgecolor="black", hatch="..")
+ax.bar(xs - width, [effect[f] for f in "ABCDE"], width, label="full, 32 runs", color="tab:blue")
+ax.bar(xs, [effect_half[f] for f in "ABCDE"], width, label="half, 16 runs", color="tab:orange", hatch="//")
+ax.bar(xs + width, [effect_quarter[f] for f in "ABCDE"], width, label="quarter, 8 runs",
+       color="white", edgecolor="black", hatch="..")
 ax.axhline(0, color="black", lw=0.8)
 ax.set_xticks(xs, [f"{f}\n{doe.FACTOR_NAMES[f]}" for f in "ABCDE"])
-ax.set_ylabel("estimated effect on yield"); ax.legend(); plt.tight_layout(); plt.show()
-gap_half = max(abs(effect[f] - effect_half[f]) for f in "ABCDE")
+ax.set_ylabel("estimated effect on yield")
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+gap_half = max(abs(effect[f] - effect_half[f]) for f in "ABCDE")   # largest full-vs-half difference
 print(f"Figure: grouped bars of the five main effects from the full factorial (solid), the half fraction "
       f"(hatched) and the quarter fraction (dotted). Full and half differ by at most {gap_half:.2f} on any "
       f"factor. The quarter fraction's D bar stands at {effect_quarter['D']:+.2f}, where the full factorial's "
@@ -466,14 +526,17 @@ code(r'''
 fig, axes = plt.subplots(1, 3, figsize=(13, 4.4))
 n_aliased = {}
 designs = (("full, 32 runs", np.ones(len(y), dtype=bool)), ("half, 16 runs", half), ("quarter, 8 runs", quarter))
-for ax, (name, rows) in zip(axes, designs):
-    C = np.corrcoef(np.column_stack([cols[w][rows] for w in low_order]).T)
-    n_aliased[name] = int((np.abs(C - np.eye(15)) > 0.5).sum() // 2)
-    ax.imshow(np.abs(C), cmap="Greys", vmin=0, vmax=1)
+for ax, (name, in_design) in zip(axes, designs):
+    # Correlation between every pair of the 15 low-order columns, within this design's runs
+    corr = np.corrcoef(np.column_stack([cols[w][in_design] for w in low_order]).T)
+    off_diagonal = np.abs(corr - np.eye(15))
+    n_aliased[name] = int((off_diagonal > 0.5).sum() // 2)     # each pair appears twice in the grid
+    ax.imshow(np.abs(corr), cmap="Greys", vmin=0, vmax=1)
     ax.set_xticks(range(15), low_order, rotation=90, fontsize=8)
     ax.set_yticks(range(15), low_order, fontsize=8)
     ax.set_title(f"{name}: {n_aliased[name]} aliased pairs")
-plt.tight_layout(); plt.show()
+plt.tight_layout()
+plt.show()
 print(f"Figure: three 15-by-15 grids of absolute correlation between the main-effect and two-factor "
       f"columns, black for 1 and white for 0. The full and half designs show only the diagonal "
       f"({n_aliased['full, 32 runs']} and {n_aliased['half, 16 runs']} aliased pairs); the quarter "
@@ -497,15 +560,18 @@ only **pure error** in the experiment: the same settings run four times, with no
 Predict before you run it: do the center runs sit above, below, or level with the corners?
 """)
 code(r'''
-n_f, n_c = len(y), len(y_center)
-curv = y.mean() - y_center.mean()
+n_corner, n_center = len(y), len(y_center)
+curv = y.mean() - y_center.mean()                 # corners minus centers: zero if the surface is flat
+
+# Is that difference bigger than noise? A t test using the pure error of the center runs
 s_pure = y_center.std(ddof=1)                     # pure error: the same settings, run four times
-se_curv = s_pure * np.sqrt(1 / n_f + 1 / n_c)
+se_curv = s_pure * np.sqrt(1 / n_corner + 1 / n_center)
 t_curv = curv / se_curv
-p_curv = 2 * stats.t.sf(abs(t_curv), n_c - 1)
+p_curv = 2 * stats.t.sf(abs(t_curv), n_center - 1)
+
 print("center runs:", y_center)
 print(f"mean of corners {y.mean():.3f}   mean of centers {y_center.mean():.3f}   difference {curv:+.3f}")
-print(f"pure-error sd {s_pure:.3f} on {n_c - 1} df   t = {t_curv:.3f}   p = {p_curv:.4f}")
+print(f"pure-error sd {s_pure:.3f} on {n_center - 1} df   t = {t_curv:.3f}   p = {p_curv:.4f}")
 ''')
 
 md(r"""
@@ -513,13 +579,15 @@ Seen as points:
 """)
 code(r'''
 fig, ax = plt.subplots(figsize=(6, 3.5))
-ax.plot(np.linspace(-0.15, 0.15, n_f), y, "o", color="tab:blue", alpha=0.7, label="corner runs")
-ax.plot(1 + np.linspace(-0.05, 0.05, n_c), y_center, "D", color="tab:orange", label="center runs")
-ax.hlines([y.mean(), y_center.mean()], [-0.3, 0.7], [0.3, 1.3], colors="black")
-ax.set_xticks([0, 1], [f"{n_f} corners", f"{n_c} centers"]); ax.set_ylabel("yield"); ax.legend()
+ax.plot(np.linspace(-0.15, 0.15, n_corner), y, "o", color="tab:blue", alpha=0.7, label="corner runs")
+ax.plot(1 + np.linspace(-0.05, 0.05, n_center), y_center, "D", color="tab:orange", label="center runs")
+ax.hlines([y.mean(), y_center.mean()], [-0.3, 0.7], [0.3, 1.3], colors="black")   # each group's mean
+ax.set_xticks([0, 1], [f"{n_corner} corners", f"{n_center} centers"])
+ax.set_ylabel("yield")
+ax.legend()
 plt.show()
-print(f"Figure: yields of the {n_f} corner runs (circles, spread from {y.min():.1f} to {y.max():.1f}) and "
-      f"the {n_c} center runs (diamonds, from {y_center.min():.1f} to {y_center.max():.1f}), each group's "
+print(f"Figure: yields of the {n_corner} corner runs (circles, spread from {y.min():.1f} to {y.max():.1f}) and "
+      f"the {n_center} center runs (diamonds, from {y_center.min():.1f} to {y_center.max():.1f}), each group's "
       f"mean marked by a black bar: {y.mean():.2f} for the corners and {y_center.mean():.2f} for the centers.")
 ''')
 

@@ -11,7 +11,8 @@ by `orteach.doe` from a printed seed and a stated true model). Package: `orteach
    center, then a fraction) with the power each rung keeps; randomizing and blocking; what the runs
    you already have can estimate; and which runs to add (D-optimal augmentation, fold-over, axial
    points). Each step carries one piece of theory: the chi-square interval for sigma, the power
-   formula and its noncentral-t check, hidden replication, drift as a fake effect, rank, the
+   formula and its noncentral-t check, hidden replication, several responses as one matrix equation
+   on the same runs, drift as a fake effect, rank, the
    omitted-variable bias that makes a regression on undesigned runs show correlation rather than
    cause, and the D-criterion.
 2. `factorial_designs.ipynb` — **the deep dive behind steps 2, 3 and 6.** Effects and interactions

@@ -30,7 +30,7 @@ can adapt it to your own problem instead of following a recipe.
 | Step | The question | The short answer |
 |---|---|---|
 | 1 | What am I measuring, and how noisy is it? | Pick the smallest effect worth detecting, $\Delta$. Estimate the noise $\sigma$ from true replicates, and plan with an upper bound on it. |
-| 2 | How many runs, and how many replicates? | About $31(\sigma/\Delta)^2$ runs *in total* for 80% power. In a factorial every run informs every effect, so many factors need few or no replicates. |
+| 2 | How many runs, and how many replicates? | About $31(\sigma/\Delta)^2$ runs *in total* for 80% power. In a factorial every run informs every effect, so many factors need few or no replicates. With several responses, the same runs serve all of them; size for the most demanding one. |
 | 3 | What do I cut first, then second, then third? | Two levels plus center points; then replicate only the center; then a fraction, which costs power and aliasing. |
 | 4 | In what order do I run them? | Randomize the order, and block anything you cannot keep constant. |
 | 5 | Can I use the runs I already have? | Code them and check what they can estimate: the rank of the model matrix. If nobody designed them, check whether the factors moved together: a regression on such runs shows association, not cause. |
@@ -298,6 +298,142 @@ assert abs(sim_power - power36) < 4 * mc_se, "the simulation disagrees with the 
 md(r"""
 The simulation lands within its own sampling error of the exact power, and both are close to the
 target, because 32 corner runs is the first $2^k$ above the $N$ the formula asked for.
+
+### More than one response
+
+Most studies measure several things on every run: yield and purity, capacity and pressure, strength
+and cost. Three questions come up at once. Can the same runs serve all of them? Is it one equation or
+several? And how many runs does the study need now?
+
+**A taste of theory: one equation, with $Y$ as a matrix.** The model matrix $M$ is built from the
+factor settings alone, so it is the same for every response. Stack the responses side by side as the
+columns of $Y$, one row per run, and the model and its least-squares solution are
+
+$$Y = MB + E, \qquad \hat B = (M^\top M)^{-1} M^\top Y,$$
+
+the single-response formula with $y$ replaced by $Y$. $\hat B$ has one column of coefficients per
+response. Column $j$ of $\hat B$ is $(M^\top M)^{-1} M^\top$ applied to column $j$ of $Y$ alone, so
+**fitting the responses together gives exactly the coefficients of fitting them one at a time.** The
+same runs serve every response, and a second response costs a measurement, not a run.
+
+What a second response does change:
+
+- **Run count.** Each response has its own noise and its own smallest change worth detecting, so
+  steps 1 and 2 are done once per response. The response with the largest $\sigma/\Delta$ sets the
+  size of the experiment.
+- **False alarms.** Every response brings its own set of tests. At 5% each, testing many terms on
+  several responses all but guarantees a few "significant" effects by chance.
+- **Model terms.** If one response needs a term the other does not, the design must support both.
+- **Correlated noise.** Responses measured on the same run share that run's quirks. That does not
+  change $\hat B$, but a test that combines responses has to allow for it.
+
+The reactor gets a second response, purity, simulated on the same 36 runs from a model stated in the
+cell (nothing later depends on hiding it): purity falls with temperature, rises with stirring, and
+has a temperature-by-stirring interaction. A change of one point of purity is worth detecting.
+Predict: which response will need more runs, yield or purity?
+""")
+code(r'''
+PURITY_TRUTH = {"intercept": 92.0, "A": -1.5, "D": 1.0, "AD": 0.8}      # coded units, coefficients
+PURITY_SIGMA, SEED_P = 0.8, 2612
+DELTA_P = 1.0                       # smallest change in purity worth detecting, percentage points
+rng_p = np.random.default_rng(SEED_P)
+purity = (PURITY_TRUTH["intercept"] + PURITY_TRUTH["A"] * D36[:, 0] + PURITY_TRUTH["D"] * D36[:, 3]
+          + PURITY_TRUTH["AD"] * D36[:, 0] * D36[:, 3] + rng_p.normal(0, PURITY_SIGMA, 36))
+print(f"purity simulated on the same {len(purity)} runs, seed {SEED_P}")
+Ymat = np.column_stack([np.r_[y, y_center], purity])        # one row per run, one column per response
+B_joint = np.linalg.solve(M36.T @ M36, M36.T @ Ymat)        # one solve: 17 coefficients x 2 responses
+B_sep = [np.linalg.solve(M36.T @ M36, M36.T @ Ymat[:, j]) for j in range(Ymat.shape[1])]
+print(f"Y is {Ymat.shape[0]} x {Ymat.shape[1]}; B-hat is {B_joint.shape[0]} x {B_joint.shape[1]}")
+print(f"largest gap between the joint fit and two separate fits: "
+      f"{max(np.abs(B_joint[:, j] - B_sep[j]).max() for j in range(2)):.1e}\n")
+terms36 = ["intercept"] + words2 + ["curvature"]
+print(f"{'term':10} {'yield':>8} {'purity':>8}")
+for w in ["intercept", "A", "B", "C", "D", "AB", "AD"]:
+    i = terms36.index(w)
+    print(f"{w:10} {B_joint[i, 0]:8.3f} {B_joint[i, 1]:8.3f}")
+''')
+
+md(r"""
+Now size the study for each response, exactly as in steps 1 and 2: the pilot $s$ from the four center
+runs, the same 80% upper bound, the same formula, and the exact power of the 36-run design.
+""")
+code(r'''
+s_p = purity[32:].std(ddof=1)
+sigma_plan_p = s_p * np.sqrt(df_pure / stats.chi2.ppf(1 - PLAN_CONF, df_pure))
+N_needed_p = 4 * (z_a + z_b) ** 2 * (sigma_plan_p / DELTA_P) ** 2
+se36_p = 2 * sigma_plan_p / np.sqrt(32)
+power36_p = stats.nct.sf(tc36, df36, DELTA_P / se36_p) + stats.nct.cdf(-tc36, df36, DELTA_P / se36_p)
+print(f"{'response':9} {'Delta':>6} {'pilot s':>8} {'sigma_plan':>11} {'sigma/Delta':>12} {'N needed':>9} {'power, 36 runs':>15}")
+for lab, d_, s_, sp_, n_, pw_ in [("yield", DELTA, s, sigma_plan, N_needed, power36),
+                                  ("purity", DELTA_P, s_p, sigma_plan_p, N_needed_p, power36_p)]:
+    print(f"{lab:9} {d_:6.1f} {s_:8.3f} {sp_:11.3f} {sp_ / d_:12.3f} {n_:9.1f} {pw_:15.3f}")
+''')
+
+md(r"""
+**Purity, not yield, sets the size of this study.** Its planning $\sigma$ is 1.364 against a $\Delta$
+of 1, so $\sigma/\Delta$ is 1.364 where yield's is 0.945, and it needs 58.4 runs where yield needs
+28.1. The 36-run design that gives yield 0.810 power gives purity 0.504: a coin flip on detecting a
+one-point change. The choices are the usual ones. Run the $2^5$ twice, 64 corner runs, which covers
+both. Accept a larger $\Delta$ for purity. Or name yield the primary response and report purity as
+secondary, with its lower power stated up front.
+
+Then the false alarms. The 36-run model has 16 terms besides the intercept, so two responses means 32
+tests. If no term mattered at all, each test would still fire 5% of the time. The **Bonferroni**
+correction divides $\alpha$ by the number of tests, which keeps the chance of *any* false alarm near
+$\alpha$; it is conservative, and naming one primary response in advance is the gentler alternative.
+""")
+code(r'''
+res = Ymat - M36 @ B_joint
+s2_resp = (res ** 2).sum(axis=0) / df36
+t_resp = B_joint / np.sqrt(np.outer(np.diag(np.linalg.inv(M36.T @ M36)), s2_resp))
+n_tests = (M36.shape[1] - 1) * Ymat.shape[1]
+tc_bonf = stats.t.ppf(1 - ALPHA / (2 * n_tests), df36)
+print(f"{n_tests} tests: expected false alarms if nothing is real {n_tests * ALPHA:.1f}; "
+      f"chance of at least one {1 - (1 - ALPHA) ** n_tests:.2f}")
+print(f"critical |t| on {df36} df: {tc36:.2f} at alpha {ALPHA}, {tc_bonf:.2f} after Bonferroni")
+sig = {}
+for j, lab in enumerate(["yield", "purity"]):
+    sig[lab] = ([terms36[i] for i in range(1, len(terms36)) if abs(t_resp[i, j]) > tc36],
+                [terms36[i] for i in range(1, len(terms36)) if abs(t_resp[i, j]) > tc_bonf])
+    print(f"{lab:7} significant at {ALPHA}: {sig[lab][0]};  after Bonferroni: {sig[lab][1]}")
+print(f"correlation of the two responses' residuals: {np.corrcoef(res[:, 0], res[:, 1])[0, 1]:.2f}")
+''')
+
+md(r"""
+The picture: the same 36 runs, two responses, two different sets of active effects.
+""")
+code(r'''
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+pos = np.arange(1, len(terms36))
+for ax, j, lab in zip(axes, range(2), ["yield", "purity"]):
+    tv = t_resp[1:, j]
+    ax.barh(pos, tv, color=["tab:blue" if abs(v) > tc_bonf else "lightgray" for v in tv])
+    for c_ in (tc36, tc_bonf):
+        ax.axvline(c_, color="black", lw=0.8, ls=":" if c_ == tc36 else "--")
+        ax.axvline(-c_, color="black", lw=0.8, ls=":" if c_ == tc36 else "--")
+    ax.set_title(lab); ax.set_xlabel("t statistic")
+axes[0].set_yticks(pos); axes[0].set_yticklabels(terms36[1:]); axes[0].invert_yaxis()
+plt.tight_layout(); plt.show()
+print(f"Figure: t statistics for the 16 terms of the 36-run model, yield on the left and purity on the right, "
+      f"from one model matrix. Dotted lines: |t| = {tc36:.2f} (alpha {ALPHA}); dashed: {tc_bonf:.2f} (Bonferroni over "
+      f"{n_tests} tests). Blue bars clear Bonferroni: yield {sig['yield'][1]}, purity {sig['purity'][1]}.")
+''')
+
+md(r"""
+At 5%, each response flags five terms. Two of purity's, BE and CE, are not in its true model: they
+are false alarms, close to the 1.6 the arithmetic expects across 32 tests. Bonferroni removes both
+and keeps exactly A, D and AD, purity's true terms. It also costs power: yield's curvature is real
+(the answer key at the end shows the curved temperature term), and it clears the 5% line but not the
+Bonferroni one. That trade is why the common practice is to name a primary response in advance, test
+it at $\alpha$, and treat the others as supporting evidence. The two responses' residuals correlate
+at 0.15 here. That changes no coefficient; it matters only to a test that combines the responses.
+
+**When the vector is the same measurement over time.** Readings of one unit at many times are a
+different structure: they are repeated measurements (step 1), not separate responses and not
+replicates. The usual route is two stages: fit a curve to each unit, then treat the curve's few
+parameters (a rate, a time to a threshold) as that unit's responses. That puts you back in this
+section, with one row per unit and one column of $Y$ per parameter. A degradation notebook that
+works this through is not written yet.
 
 ---
 
@@ -792,7 +928,10 @@ cover it.
 ## In short
 
 1. Choose $\Delta$; estimate $\sigma$ from true replicates and plan with an upper bound.
-2. Total runs $N \approx 31(\sigma/\Delta)^2$. Replicates $= N / 2^k$, rounded up: often one.
+2. Total runs $N \approx 31(\sigma/\Delta)^2$. Replicates $= N / 2^k$, rounded up: often one. With
+   several responses, $\hat B = (M^\top M)^{-1} M^\top Y$ fits them all from the same runs; size the
+   study for the response with the largest $\sigma/\Delta$, and name a primary one or correct for the
+   extra tests.
 3. Cut in this order: two levels plus center points, replicate only the center, then a fraction if
    the effects that matter are large enough or you plan to augment.
 4. Randomize the run order; block known nuisances; recognise split plots and repeated measures.
@@ -829,6 +968,10 @@ pkg_M_aug = np.column_stack([doe.model_matrix(X[rows_aug], words2), batch_aug])
 X_log = np.column_stack([A_log, B_log, np.zeros((N_LOG, 3))])
 pkg_log = [doe.coefficients(X_log, y_log, ["A"])["A"], doe.coefficients(X_log, y_log, ["A", "B"])["A"],
            doe.coefficients(X, y, ["A"])["A"], doe.coefficients(X, y, ["A", "B"])["A"]]
+pkg_plan_p = doe.sigma_bound(purity[32:], PLAN_CONF)
+pkg_N_p = doe.runs_needed(DELTA_P, pkg_plan_p, ALPHA, TARGET)
+pkg_power36_p = doe.power(DELTA_P, doe.effect_se(D36[:, 0], pkg_plan_p), df36, ALPHA)
+pkg_purity = doe.coefficients(X, purity[:32], words2)
 print(f"sigma: s {pkg_int.s:.3f}, 95% interval {pkg_int.lower:.3f} to {pkg_int.upper:.3f}, plan {pkg_plan:.3f}")
 print(f"runs needed {pkg_N:.1f}; 36-run design power {pkg_power36:.3f}")
 print("augmentation adds", pkg_added)
@@ -856,6 +999,9 @@ for r, (p1, p2) in zip(ladder_rows, pkg_ladder):
     checks += [(f"{r[0]} power", r[4], p1), (f"{r[0]} power x2", r[5], p2)]
 checks += [(f"drift bias {f}", bias_std[f], pkg_drift[f] - pkg_plain[f]) for f in "ABCDE"]
 checks += [(f"temperature coefficient, {label}", fits[label][0][1], p) for label, p in zip(fits, pkg_log)]
+checks += [("purity sigma plan", sigma_plan_p, pkg_plan_p), ("purity runs needed", N_needed_p, pkg_N_p),
+           ("purity power, 36 runs", power36_p, pkg_power36_p)]
+checks += [(f"purity {w}", B_joint[1 + i, 1], pkg_purity[w]) for i, w in enumerate(words2)]
 worst = max(rel_diff(h, k) for _, h, k in checks)
 print(f"{len(checks)} numbers compared, plus the augmentation order and the model matrix")
 assert worst < AGREEMENT_RTOL, f"notebook and package disagree by {worst:.2e}"
@@ -873,6 +1019,9 @@ md(r"""
   How much of the experiment did six more pilot runs buy back?
 - Re-run step 4 with the drift made quadratic in time instead of linear. Does the standard order
   still dump it on E? Which effect does it land on now?
+- In the multiple-response section, set `DELTA_P` to 2. Which response now sets the size of the
+  study? Then change `SEED_P` a few times and watch the purity pilot $s$ move: how often would four
+  center runs have told you purity was the easy response?
 - In the logged runs of step 5, set `RHO` to 0 and then to 0.95, and re-run. How do the
   temperature-only slope, $\delta$ and the standard-error inflation move? At what correlation would
   you stop trusting the regression with catalyst included?

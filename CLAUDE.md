@@ -104,7 +104,7 @@ portable means petitioning Part 2b of the standard, which is Jones's call and no
 
 ```
 src/orteach/        the package
-notebooks/NN_subject/   01_lp_formulation ... 14_probability_and_stats
+notebooks/NN_subject/   01_lp_formulation ... 15_design_of_experiments
 data/raw/  tests/
 ```
 
@@ -136,8 +136,9 @@ They belong with the repository. Moved twice so far: to `C:\dev\` on 2026-09-05,
 
 ## Status, measured 2026-09-05
 
-Twenty-two notebooks (seventeen as of 2026-09-05) across thirteen subjects (`02` added 2026-10-27), sixteen package modules, thirty-
-odd tables in `data/raw/`, 170 tests, and `tools/check_notebooks.py`. README.md has the table.
+Twenty-five notebooks (seventeen as of 2026-09-05) across fifteen subjects (`02` added 2026-10-27, `15`
+design of experiments 2026-11-18/19), twenty-three package modules, thirty-odd tables in `data/raw/`, 251 tests,
+and `tools/check_notebooks.py`. README.md has the table.
 
 **What to run before believing anything:** `python -m pytest tests/ -q`,
 `python tools/check_notebooks.py` and `python tools/check_seeds.py`. All three must be clean before

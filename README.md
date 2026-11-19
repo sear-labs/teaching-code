@@ -121,11 +121,12 @@ ahead of LP formulation, which is backwards.
 05_integer_and_branch_bound    12_energy_systems_pypsa
 06_nonlinear_and_convex        13_supply_chain
 07_stochastic_and_newsvendor   14_probability_and_stats
+                               15_design_of_experiments
 ```
 
-## What is here, measured 2026-09-05
+## What is here, measured 2026-11-19
 
-Twenty-two teaching notebooks in thirteen subjects, each with its package module, its tables and
+Twenty-five teaching notebooks in fifteen subjects, each with its package module, its tables and
 its tests. Every notebook ships executed, ends in the
 agreement assertion, and passes `tools/check_notebooks.py`.
 
@@ -145,6 +146,7 @@ agreement assertion, and passes `tools/check_notebooks.py`.
 | 12 | `dispatch_to_pypsa` (own kernel — see its README) | `energy` |
 | 13 | `sourcing_and_resilience` | `sourcing` |
 | 14 | `distributions_and_clt`, `inference_and_regression` | `distributions`, `inference` |
+| 15 | `planning_an_experiment`, `factorial_designs`, `space_filling_designs` | `doe` |
 
 `orteach.tolerance` is the one home of every tolerance and of the solver settings that make the
 agreement assertion honest.
